@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>NxtQ CRM - Agent Management</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #25D366;
+            --primary-dark: #128C7E;
+            --secondary: #34495e;
+            --background: #f8fafc;
+            --surface: #ffffff;
+            --text-primary: #1a202c;
+            --text-secondary: #718096;
+            --border: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: var(--background); color: var(--text-primary); }
+        .header { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; padding: 2rem 0; }
+        .header-content { max-width: 1200px; margin: 0 auto; padding: 0 2rem; }
+        .header h1 { font-size: 2.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .header p { opacity: 0.9; font-size: 1.1rem; }
+        .container { max-width: 1200px; margin: 2rem auto; padding: 0 2rem; }
+        .nav { display: flex; gap: 1rem; margin-bottom: 2rem; }
+        .nav-item { padding: 0.75rem 1.5rem; background: var(--surface); border-radius: 8px; text-decoration: none; color: var(--text-secondary); transition: all 0.2s; }
+        .nav-item.active, .nav-item:hover { background: var(--primary); color: white; }
+        .agents-grid { display: grid; gap: 1.5rem; }
+        .agent-card { background: var(--surface); border-radius: 12px; padding: 2rem; box-shadow: var(--shadow); border: 1px solid var(--border); }
+        .agent-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .agent-name { font-size: 1.2rem; font-weight: 600; color: var(--text-primary); }
+        .agent-id { color: var(--text-secondary); font-size: 0.9rem; }
+        .agent-context { background: #f8fafc; padding: 1rem; border-radius: 8px; margin: 1rem 0; max-height: 100px; overflow: hidden; }
+        .agent-meta { display: flex; gap: 2rem; margin-top: 1rem; }
+        .meta-item { display: flex; align-items: center; gap: 0.5rem; color: var(--text-secondary); font-size: 0.9rem; }
+        .edit-btn { padding: 0.5rem 1rem; background: var(--primary); color: white; text-decoration: none; border-radius: 6px; transition: all 0.2s; }
+        .edit-btn:hover { background: var(--primary-dark); }
+        .create-btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 1rem 2rem; background: var(--primary); color: white; text-decoration: none; border-radius: 8px; margin-bottom: 2rem; }
+        .empty-state { text-align: center; padding: 4rem 2rem; }
+        .empty-state i { font-size: 3rem; color: #cbd5e0; margin-bottom: 1rem; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <h1><i class="fas fa-cogs"></i> NxtQ CRM</h1>
+            <p>Agent Context Management System</p>
+        </div>
+    </div>
+    
+    <div class="container">
+        <nav class="nav">
+            <a href="/" class="nav-item"><i class="fas fa-home"></i> Dashboard</a>
+            <a href="/crm" class="nav-item active"><i class="fas fa-robot"></i> Agents</a>
+        </nav>
+        
+        <a href="/crm/agent/1/10" class="create-btn">
+            <i class="fas fa-plus"></i> Create New Agent
+        </a>
+        
+        <div class="agents-grid">
+            <% if (agents.length === 0) { %>
+                <div class="empty-state">
+                    <i class="fas fa-robot"></i>
+                    <h3>No agents configured</h3>
+                    <p>Create your first agent to get started</p>
+                </div>
+            <% } else { %>
+                <% agents.forEach(agent => { %>
+                    <div class="agent-card">
+                        <div class="agent-header">
+                            <div>
+                                <div class="agent-name"><%= agent.name %></div>
+                                <div class="agent-id">Business: <%= agent.business_id %> | Agent: <%= agent.agent_id %></div>
+                            </div>
+                            <a href="/crm/agent/<%= agent.business_id %>/<%= agent.agent_id %>" class="edit-btn">
+                                <i class="fas fa-edit"></i> Edit
+                            </a>
+                        </div>
+                        
+                        <div class="agent-context">
+                            <%= agent.context.substring(0, 200) %>...
+                        </div>
+                        
+                        <div class="agent-meta">
+                            <div class="meta-item">
+                                <i class="fas fa-user"></i>
+                                Updated by: <%= agent.updated_by %>
+                            </div>
+                            <div class="meta-item">
+                                <i class="fas fa-clock"></i>
+                                <%= new Date(agent.updatedAt).toLocaleString() %>
+                            </div>
+                            <div class="meta-item">
+                                <i class="fas fa-<%= agent.is_active ? 'check-circle' : 'times-circle' %>"></i>
+                                <%= agent.is_active ? 'Active' : 'Inactive' %>
+                            </div>
+                        </div>
+                    </div>
+                <% }) %>
+            <% } %>
+        </div>
+    </div>
+</body>
+</html>

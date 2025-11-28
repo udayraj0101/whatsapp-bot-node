@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>NxtQ CRM - Edit Agent</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #25D366;
+            --primary-dark: #128C7E;
+            --secondary: #34495e;
+            --background: #f8fafc;
+            --surface: #ffffff;
+            --text-primary: #1a202c;
+            --text-secondary: #718096;
+            --border: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: var(--background); color: var(--text-primary); }
+        .header { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; padding: 2rem 0; }
+        .header-content { max-width: 1200px; margin: 0 auto; padding: 0 2rem; }
+        .back { display: inline-flex; align-items: center; gap: 0.5rem; color: white; text-decoration: none; margin-bottom: 1rem; }
+        .header h1 { font-size: 2rem; font-weight: 700; }
+        .container { max-width: 800px; margin: 2rem auto; padding: 0 2rem; }
+        .form-card { background: var(--surface); border-radius: 12px; padding: 2rem; box-shadow: var(--shadow); }
+        .form-group { margin-bottom: 1.5rem; }
+        .form-label { display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-primary); }
+        .form-input { width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; }
+        .form-textarea { width: 100%; padding: 1rem; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; min-height: 300px; font-family: 'Courier New', monospace; }
+        .form-actions { display: flex; gap: 1rem; justify-content: flex-end; }
+        .btn { padding: 0.75rem 2rem; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-secondary { background: var(--border); color: var(--text-secondary); }
+        .btn:hover { opacity: 0.9; }
+        .help-text { font-size: 0.9rem; color: var(--text-secondary); margin-top: 0.5rem; }
+        .preview { background: #f8fafc; padding: 1rem; border-radius: 8px; margin-top: 1rem; border-left: 4px solid var(--primary); }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <a href="/crm" class="back">
+                <i class="fas fa-arrow-left"></i> Back to CRM
+            </a>
+            <h1><i class="fas fa-robot"></i> <%= agent ? 'Edit Agent' : 'Create Agent' %></h1>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="form-card">
+            <form method="POST">
+                <div class="form-group">
+                    <label class="form-label">Agent Name</label>
+                    <input type="text" name="name" class="form-input" 
+                           value="<%= agent ? agent.name : 'NxtQ Support Agent' %>" 
+                           placeholder="Enter agent name" required>
+                    <div class="help-text">A friendly name for this agent configuration</div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Business ID: <%= businessId %> | Agent ID: <%= agentId %></label>
+                    <div class="help-text">This agent will handle conversations for Business ID <%= businessId %> and Agent ID <%= agentId %></div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Agent Context & Instructions</label>
+                    <textarea name="context" class="form-textarea" placeholder="Enter agent context and instructions..." required><%= agent ? agent.context : `You are NxtQ Support WhatsApp assistant. CRITICAL: Always respond in the SAME LANGUAGE the user is speaking. If user speaks Hindi, respond in Hindi. If user speaks Hinglish (Hindi-English mix), respond in Hinglish. If user speaks English, respond in English. Match their language style exactly.
+
+Conversation Flow:
+
+1) GREETING: 
+   - English: "Hi, thanks for reaching out to NxtQ Support! How can I assist you today?\\n\\n1) Report an issue\\n2) Find a service center\\n3) Order / Delivery update"
+   - Hindi: "नमस्ते, NxtQ Support में आपका स्वागत है! आज मैं आपकी कैसे सहायता कर सकता हूं?\\n\\n1) समस्या रिपोर्ट करें\\n2) सर्विस सेंटर खोजें\\n3) ऑर्डर / डिलीवरी अपडेट"
+   - Hinglish: "Hi, NxtQ Support mein aapka swagat hai! Aaj main aapki kaise help kar sakta hun?\\n\\n1) Issue report kariye\\n2) Service center dhundiye\\n3) Order / Delivery update"
+
+2) REPORT ISSUE: Ask for name, phone, bill photo, issue description in user's language
+
+3) SERVICE CENTER: Ask for PIN code or city in user's language
+
+4) ORDER UPDATE: Ask for order number in user's language
+
+5) MEDIA RECEIVED: 
+   - Images/docs: Respond in user's language "Thank you for sending the file. We will review it."
+   - Audio: Acknowledge transcribed content in same language
+
+6) TROUBLESHOOTING: Guide in user's language
+
+7) HUMAN ESCALATION: Respond in user's language about escalating to human agent
+
+8) FALLBACK: Ask to choose options in user's language
+
+IMPORTANT: Detect user's language from their message and respond accordingly. Be natural, helpful, and maintain the same language throughout the conversation.` %></textarea>
+                    <div class="help-text">
+                        Define how the agent should behave, respond, and handle different scenarios. 
+                        Use clear instructions and include multilingual support.
+                    </div>
+                </div>
+                
+                <div class="preview">
+                    <strong>💡 Tips for Agent Context:</strong>
+                    <ul style="margin-left: 1.5rem; margin-top: 0.5rem;">
+                        <li>Always specify language handling instructions</li>
+                        <li>Include greeting messages in multiple languages</li>
+                        <li>Define clear conversation flows</li>
+                        <li>Specify how to handle media files</li>
+                        <li>Include escalation procedures</li>
+                    </ul>
+                </div>
+                
+                <div class="form-actions">
+                    <a href="/crm" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> Cancel
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Save Agent
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

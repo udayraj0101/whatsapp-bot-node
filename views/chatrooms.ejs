@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>NxtQ Support - Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #25D366;
+            --primary-dark: #128C7E;
+            --secondary: #34495e;
+            --background: #f8fafc;
+            --surface: #ffffff;
+            --text-primary: #1a202c;
+            --text-secondary: #718096;
+            --border: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--background); color: var(--text-primary); line-height: 1.6; }
+        .header { background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); color: white; padding: 3rem 0; position: relative; overflow: hidden; }
+        .header::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="50" cy="50" r="1" fill="%23ffffff" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>'); }
+        .header-content { max-width: 1200px; margin: 0 auto; padding: 0 2rem; position: relative; z-index: 1; }
+        .header h1 { font-size: 3rem; font-weight: 700; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 1rem; }
+        .header p { opacity: 0.9; font-size: 1.2rem; font-weight: 300; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+        .dashboard-nav { display: flex; gap: 1rem; margin-bottom: 2rem; }
+        .nav-item { padding: 0.75rem 1.5rem; background: var(--surface); border-radius: 8px; border: 1px solid var(--border); color: var(--text-secondary); text-decoration: none; transition: all 0.2s; }
+        .nav-item.active, .nav-item:hover { background: var(--primary); color: white; border-color: var(--primary); }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 3rem; }
+        .stat-card { background: var(--surface); padding: 2rem; border-radius: 16px; box-shadow: var(--shadow); border: 1px solid var(--border); transition: all 0.3s ease; position: relative; overflow: hidden; }
+        .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, var(--primary), var(--primary-dark)); }
+        .stat-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+        .stat-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+        .stat-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; }
+        .stat-number { font-size: 2.5rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem; }
+        .stat-label { color: var(--text-secondary); font-weight: 500; }
+        .stat-change { font-size: 0.875rem; color: var(--primary); font-weight: 500; }
+        .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; }
+        .section-title { font-size: 1.5rem; font-weight: 600; color: var(--text-primary); }
+        .search-box { position: relative; }
+        .search-box input { padding: 0.75rem 1rem 0.75rem 3rem; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); width: 300px; }
+        .search-box i { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-secondary); }
+        .chatrooms-grid { display: grid; gap: 1.5rem; }
+        .chatroom { background: var(--surface); border-radius: 16px; padding: 2rem; box-shadow: var(--shadow); border: 1px solid var(--border); transition: all 0.3s ease; position: relative; }
+        .chatroom::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--primary); border-radius: 16px 0 0 16px; }
+        .chatroom:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+        .chatroom-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
+        .customer-info { display: flex; align-items: center; gap: 1rem; }
+        .avatar { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; }
+        .customer-details h3 { font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.25rem; }
+        .customer-details p { color: var(--text-secondary); font-size: 0.9rem; }
+        .status-badge { padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 500; }
+        .status-active { background: #dcfce7; color: #166534; }
+        .status-inactive { background: #fef3c7; color: #92400e; }
+        .chatroom-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+        .meta-item { display: flex; align-items: center; gap: 0.5rem; color: var(--text-secondary); font-size: 0.9rem; }
+        .meta-item i { width: 16px; text-align: center; }
+        .last-message { background: #f8fafc; padding: 1rem; border-radius: 8px; margin-top: 1rem; }
+        .last-message-text { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.4; }
+        .time-ago { color: var(--text-secondary); font-size: 0.8rem; margin-top: 0.5rem; }
+        a { text-decoration: none; color: inherit; }
+        .empty-state { text-align: center; padding: 6rem 2rem; }
+        .empty-state-icon { width: 80px; height: 80px; border-radius: 20px; background: linear-gradient(135deg, #f1f5f9, #e2e8f0); display: flex; align-items: center; justify-content: center; margin: 0 auto 2rem; }
+        .empty-state-icon i { font-size: 2rem; color: var(--text-secondary); }
+        .empty-state h3 { font-size: 1.5rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; }
+        .empty-state p { color: var(--text-secondary); max-width: 400px; margin: 0 auto; }
+        @media (max-width: 768px) {
+            .header h1 { font-size: 2rem; }
+            .container { padding: 1rem; }
+            .stats { grid-template-columns: 1fr; }
+            .search-box input { width: 100%; }
+            .chatroom-meta { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <h1><i class="fab fa-whatsapp"></i> NxtQ Support</h1>
+            <p>Advanced WhatsApp Customer Support Dashboard</p>
+        </div>
+    </div>
+    
+    <div class="container">
+        <nav class="dashboard-nav">
+            <a href="/" class="nav-item active"><i class="fas fa-home"></i> Dashboard</a>
+            <a href="/crm" class="nav-item"><i class="fas fa-robot"></i> CRM</a>
+            <a href="#" class="nav-item"><i class="fas fa-chart-bar"></i> Analytics</a>
+            <a href="#" class="nav-item"><i class="fas fa-cog"></i> Settings</a>
+        </nav>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white;">
+                        <i class="fas fa-comments"></i>
+                    </div>
+                </div>
+                <div class="stat-number"><%= chatrooms.length %></div>
+                <div class="stat-label">Total Conversations</div>
+                <div class="stat-change">+12% from last month</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #10b981, #059669); color: white;">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                </div>
+                <div class="stat-number"><%= chatrooms.filter(c => new Date() - new Date(c.updatedAt) < 24*60*60*1000).length %></div>
+                <div class="stat-label">Active Today</div>
+                <div class="stat-change">+5% from yesterday</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white;">
+                        <i class="fas fa-calendar-week"></i>
+                    </div>
+                </div>
+                <div class="stat-number"><%= chatrooms.filter(c => new Date() - new Date(c.updatedAt) < 7*24*60*60*1000).length %></div>
+                <div class="stat-label">This Week</div>
+                <div class="stat-change">+8% from last week</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white;">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                </div>
+                <div class="stat-number">94%</div>
+                <div class="stat-label">AI Resolution Rate</div>
+                <div class="stat-change">+2% improvement</div>
+            </div>
+        </div>
+        
+        <div class="section-header">
+            <h2 class="section-title">Customer Conversations</h2>
+            <div class="search-box">
+                <i class="fas fa-search"></i>
+                <input type="text" placeholder="Search conversations..." id="searchInput">
+            </div>
+        </div>
+        
+        <div class="chatrooms-grid">
+            <% if (chatrooms.length === 0) { %>
+                <div class="empty-state">
+                    <div class="empty-state-icon">
+                        <i class="fas fa-comments"></i>
+                    </div>
+                    <h3>No conversations yet</h3>
+                    <p>Customer conversations will appear here once they start chatting with your WhatsApp Business account</p>
+                </div>
+            <% } else { %>
+                <% chatrooms.forEach(chatroom => { %>
+                    <% const isActive = new Date() - new Date(chatroom.updatedAt) < 24*60*60*1000; %>
+                    <a href="/chatroom/<%= chatroom._id %>">
+                        <div class="chatroom">
+                            <div class="chatroom-header">
+                                <div class="customer-info">
+                                    <div class="avatar">
+                                        <%= chatroom.phone_number.slice(-2) %>
+                                    </div>
+                                    <div class="customer-details">
+                                        <h3><%= chatroom.phone_number %></h3>
+                                        <p>Thread: <%= chatroom.thread_id.substring(0, 16) %>...</p>
+                                    </div>
+                                </div>
+                                <div class="status-badge <%= isActive ? 'status-active' : 'status-inactive' %>">
+                                    <i class="fas fa-circle" style="font-size: 0.5rem; margin-right: 0.25rem;"></i>
+                                    <%= isActive ? 'Active' : 'Inactive' %>
+                                </div>
+                            </div>
+                            
+                            <div class="chatroom-meta">
+                                <div class="meta-item">
+                                    <i class="fas fa-building"></i>
+                                    Business ID: <%= chatroom.business_id %>
+                                </div>
+                                <div class="meta-item">
+                                    <i class="fas fa-robot"></i>
+                                    Agent ID: <%= chatroom.agent_id %>
+                                </div>
+                                <div class="meta-item">
+                                    <i class="fas fa-calendar-plus"></i>
+                                    Created: <%= new Date(chatroom.createdAt).toLocaleDateString() %>
+                                </div>
+                                <div class="meta-item">
+                                    <i class="fas fa-clock"></i>
+                                    Last: <%= new Date(chatroom.updatedAt).toLocaleString() %>
+                                </div>
+                            </div>
+                            
+                            <div class="last-message">
+                                <div class="last-message-text">
+                                    <i class="fas fa-comment-dots"></i>
+                                    Click to view conversation history and messages
+                                </div>
+                            </div>
+                        </div>
+                    </a>
+                <% }) %>
+            <% } %>
+        </div>
+    </div>
+    
+    <script>
+        // Search functionality
+        document.getElementById('searchInput')?.addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            const chatrooms = document.querySelectorAll('.chatroom');
+            
+            chatrooms.forEach(chatroom => {
+                const text = chatroom.textContent.toLowerCase();
+                const parent = chatroom.parentElement;
+                if (text.includes(searchTerm)) {
+                    parent.style.display = 'block';
+                } else {
+                    parent.style.display = 'none';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
