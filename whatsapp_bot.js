@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const { connectDB, createOrGetChatroom, saveMessage, Chatroom, Message, AgentContext, getAgentContext, saveAgentContext } = require('./models/database');
 const { transcribeAudio } = require('./ai/stt');
+const { analyzeImage } = require('./ai/vision');
 
 const app = express();
 const API_BASE = process.env.API_BASE_URL || 'http://localhost:8000';
@@ -105,13 +106,24 @@ async function handleIncomingMessage(message, value) {
             const fileName = await downloadMedia(mediaData.id, messageType, from);
             mediaInfo = `[Media received: ${messageType}${fileName ? ` - ${fileName}` : ''}]`;
             
-            // Transcribe audio to text
+            // Process media based on type
             if (messageType === 'audio' && fileName) {
+                // Transcribe audio to text
                 const audioPath = path.join(uploadsDir, fileName);
                 const transcription = await transcribeAudio(audioPath);
                 if (transcription) {
                     messageText = `${mediaInfo} [Transcription: ${transcription}]`;
                     console.log(`Audio transcribed: ${transcription}`);
+                } else {
+                    messageText = caption ? `${mediaInfo} ${caption}` : mediaInfo;
+                }
+            } else if (messageType === 'image' && fileName) {
+                // Analyze image content
+                const imagePath = path.join(uploadsDir, fileName);
+                const imageAnalysis = await analyzeImage(imagePath);
+                if (imageAnalysis) {
+                    messageText = `${mediaInfo} [Image Analysis: ${imageAnalysis}]`;
+                    console.log(`Image analyzed: ${imageAnalysis}`);
                 } else {
                     messageText = caption ? `${mediaInfo} ${caption}` : mediaInfo;
                 }
@@ -146,8 +158,17 @@ async function handleIncomingMessage(message, value) {
         // Save user message
         const mediaUrl = mediaInfo ? `uploads/${mediaInfo.split(' - ')[1]?.replace(']', '')}` : null;
         await saveMessage(chatroom._id, 'user', messageText, from, messageType !== 'text' ? messageType : null, mediaUrl, message.id);
-        // Get agent context from database
+        // Get agent context from database (fresh fetch each time)
+        console.log(`Fetching agent context for Business ID: ${BUSINESS_ID}, Agent ID: ${AGENT_ID}`);
         const agentContextData = await getAgentContext(parseInt(BUSINESS_ID), parseInt(AGENT_ID));
+        
+        if (agentContextData) {
+            console.log(`Agent context found: ${agentContextData.name} (Updated: ${agentContextData.updatedAt})`);
+            console.log(`Context preview: ${agentContextData.context.substring(0, 100)}...`);
+        } else {
+            console.log('No agent context found in database, using default context');
+        }
+        
         const contextText = agentContextData ? agentContextData.context : `You are NxtQ Support WhatsApp assistant. CRITICAL: Always respond in the SAME LANGUAGE the user is speaking. If user speaks Hindi, respond in Hindi. If user speaks Hinglish (Hindi-English mix), respond in Hinglish. If user speaks English, respond in English. Match their language style exactly.
 
 Conversation Flow:
@@ -164,8 +185,9 @@ Conversation Flow:
 4) ORDER UPDATE: Ask for order number in user's language
 
 5) MEDIA RECEIVED: 
-   - Images/docs: Respond in user's language "Thank you for sending the file. We will review it."
+   - Images: Acknowledge analyzed content and respond based on what you see in the image
    - Audio: Acknowledge transcribed content in same language
+   - Documents: Respond in user's language "Thank you for sending the file. We will review it."
 
 6) TROUBLESHOOTING: Guide in user's language
 
@@ -184,6 +206,7 @@ IMPORTANT: Detect user's language from their message and respond accordingly. Be
             tools: []
         };
 
+        console.log(`Using context: ${contextText.substring(0, 150)}...`);
         console.log(`API Request - /agent/process: ${JSON.stringify(agentRequest)}`);
         const response = await axios.post(`${API_BASE}/agent/process`, agentRequest);
 

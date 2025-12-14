@@ -173,6 +173,14 @@
                                         <i class="fas fa-microphone"></i> Transcription: <%= parts[1].replace(']', '') %>
                                     </div>
                                 <% } %>
+                            <% } else if (message.content.includes('[Image Analysis:')) { %>
+                                <% const parts = message.content.split('[Image Analysis:'); %>
+                                <%= parts[0] %>
+                                <% if (parts[1]) { %>
+                                    <div class="transcription">
+                                        <i class="fas fa-eye"></i> Image Analysis: <%= parts[1].replace(']', '') %>
+                                    </div>
+                                <% } %>
                             <% } else { %>
                                 <%= message.content %>
                             <% } %>

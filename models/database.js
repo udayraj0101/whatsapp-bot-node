@@ -103,15 +103,25 @@ async function getChatroomMessages(chatroomId, limit = 50) {
     }
 }
 
-// Get agent context
+// Get agent context (with fresh database query)
 async function getAgentContext(businessId, agentId) {
     try {
-        return await AgentContext.findOne({ 
+        console.log(`Database query: Finding agent context for business_id: ${businessId}, agent_id: ${agentId}`);
+        const result = await AgentContext.findOne({ 
             business_id: businessId, 
             agent_id: agentId, 
             is_active: true 
-        });
+        }).lean(); // Use lean() for better performance and to avoid caching
+        
+        if (result) {
+            console.log(`Found agent context: ${result.name}, last updated: ${result.updatedAt}`);
+        } else {
+            console.log(`No agent context found for business_id: ${businessId}, agent_id: ${agentId}`);
+        }
+        
+        return result;
     } catch (error) {
+        console.error('Error fetching agent context:', error);
         throw error;
     }
 }
