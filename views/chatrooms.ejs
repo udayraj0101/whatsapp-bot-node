@@ -7,31 +7,52 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary: #25D366;
-            --primary-dark: #128C7E;
-            --secondary: #34495e;
+            --primary: #1e40af;
+            --primary-dark: #1e3a8a;
+            --primary-light: #3b82f6;
+            --secondary: #64748b;
+            --accent: #0ea5e9;
             --background: #f8fafc;
             --surface: #ffffff;
-            --text-primary: #1a202c;
-            --text-secondary: #718096;
+            --surface-dark: #0f172a;
+            --text-primary: #0f172a;
+            --text-secondary: #64748b;
+            --text-light: #94a3b8;
             --border: #e2e8f0;
-            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            --border-dark: #334155;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--background); color: var(--text-primary); line-height: 1.6; }
-        .header { background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); color: white; padding: 3rem 0; position: relative; overflow: hidden; }
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--background); color: var(--text-primary); line-height: 1.6; margin: 0; }
+        .app-layout { display: flex; min-height: 100vh; }
+        .sidebar { width: 280px; background: var(--surface-dark); color: white; padding: 2rem 0; position: fixed; height: 100vh; overflow-y: auto; z-index: 100; }
+        .sidebar-header { padding: 0 2rem 2rem; border-bottom: 1px solid var(--border-dark); margin-bottom: 2rem; }
+        .sidebar-header h1 { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.75rem; }
+        .sidebar-header p { color: #94a3b8; font-size: 0.875rem; }
+        .sidebar-nav { padding: 0 1rem; }
+        .sidebar-nav-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; margin-bottom: 0.5rem; border-radius: 8px; color: #cbd5e1; text-decoration: none; transition: all 0.2s; }
+        .sidebar-nav-item:hover { background: rgba(59, 130, 246, 0.1); color: var(--primary-light); }
+        .sidebar-nav-item.active { background: var(--primary); color: white; box-shadow: var(--shadow-md); }
+        .sidebar-nav-item i { width: 20px; text-align: center; }
+        .main-content { flex: 1; margin-left: 280px; }
+        .header { background: linear-gradient(135deg, var(--surface-dark) 0%, var(--primary-dark) 100%); color: white; padding: 2rem 0; position: relative; overflow: hidden; border-bottom: 1px solid var(--border-dark); }
         .header::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="50" cy="50" r="1" fill="%23ffffff" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>'); }
         .header-content { max-width: 1200px; margin: 0 auto; padding: 0 2rem; position: relative; z-index: 1; }
-        .header h1 { font-size: 3rem; font-weight: 700; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 1rem; }
-        .header p { opacity: 0.9; font-size: 1.2rem; font-weight: 300; }
-        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
-        .dashboard-nav { display: flex; gap: 1rem; margin-bottom: 2rem; }
-        .nav-item { padding: 0.75rem 1.5rem; background: var(--surface); border-radius: 8px; border: 1px solid var(--border); color: var(--text-secondary); text-decoration: none; transition: all 0.2s; }
-        .nav-item.active, .nav-item:hover { background: var(--primary); color: white; border-color: var(--primary); }
+        .header h1 { font-size: 2rem; font-weight: 600; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 1rem; }
+        .header p { opacity: 0.8; font-size: 1rem; font-weight: 400; color: #cbd5e1; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+        .page-header { background: var(--surface); border-radius: 16px; padding: 2rem; margin-bottom: 2rem; box-shadow: var(--shadow); border: 1px solid var(--border); }
+        .page-title { font-size: 1.75rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; }
+        .page-subtitle { color: var(--text-secondary); font-size: 1rem; }
         .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 3rem; }
         .stat-card { background: var(--surface); padding: 2rem; border-radius: 16px; box-shadow: var(--shadow); border: 1px solid var(--border); transition: all 0.3s ease; position: relative; overflow: hidden; }
-        .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, var(--primary), var(--primary-dark)); }
+        .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--primary), var(--accent)); }
         .stat-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
         .stat-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
         .stat-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; }
@@ -45,52 +66,102 @@
         .search-box i { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-secondary); }
         .chatrooms-grid { display: grid; gap: 1.5rem; }
         .chatroom { background: var(--surface); border-radius: 16px; padding: 2rem; box-shadow: var(--shadow); border: 1px solid var(--border); transition: all 0.3s ease; position: relative; }
-        .chatroom::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--primary); border-radius: 16px 0 0 16px; }
+        .chatroom::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: linear-gradient(180deg, var(--primary), var(--accent)); border-radius: 16px 0 0 16px; }
         .chatroom:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
         .chatroom-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
         .customer-info { display: flex; align-items: center; gap: 1rem; }
-        .avatar { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; }
+        .avatar { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; box-shadow: var(--shadow-md); }
         .customer-details h3 { font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.25rem; }
         .customer-details p { color: var(--text-secondary); font-size: 0.9rem; }
         .status-badge { padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 500; }
-        .status-active { background: #dcfce7; color: #166534; }
-        .status-inactive { background: #fef3c7; color: #92400e; }
+        .status-active { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+        .status-inactive { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
         .chatroom-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
         .meta-item { display: flex; align-items: center; gap: 0.5rem; color: var(--text-secondary); font-size: 0.9rem; }
         .meta-item i { width: 16px; text-align: center; }
-        .last-message { background: #f8fafc; padding: 1rem; border-radius: 8px; margin-top: 1rem; }
+        .last-message { background: #f1f5f9; padding: 1rem; border-radius: 8px; margin-top: 1rem; border-left: 3px solid var(--primary); }
         .last-message-text { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.4; }
         .time-ago { color: var(--text-secondary); font-size: 0.8rem; margin-top: 0.5rem; }
         a { text-decoration: none; color: inherit; }
         .empty-state { text-align: center; padding: 6rem 2rem; }
-        .empty-state-icon { width: 80px; height: 80px; border-radius: 20px; background: linear-gradient(135deg, #f1f5f9, #e2e8f0); display: flex; align-items: center; justify-content: center; margin: 0 auto 2rem; }
-        .empty-state-icon i { font-size: 2rem; color: var(--text-secondary); }
+        .empty-state-icon { width: 80px; height: 80px; border-radius: 20px; background: linear-gradient(135deg, var(--primary-light), var(--primary)); display: flex; align-items: center; justify-content: center; margin: 0 auto 2rem; box-shadow: var(--shadow-lg); }
+        .empty-state-icon i { font-size: 2rem; color: white; }
         .empty-state h3 { font-size: 1.5rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; }
         .empty-state p { color: var(--text-secondary); max-width: 400px; margin: 0 auto; }
+        @media (max-width: 1024px) {
+            .sidebar { transform: translateX(-100%); }
+            .main-content { margin-left: 0; }
+            .mobile-header { display: block; background: var(--surface-dark); color: white; padding: 1rem 2rem; }
+            .mobile-menu-btn { background: none; border: none; color: white; font-size: 1.25rem; cursor: pointer; }
+        }
         @media (max-width: 768px) {
-            .header h1 { font-size: 2rem; }
             .container { padding: 1rem; }
             .stats { grid-template-columns: 1fr; }
             .search-box input { width: 100%; }
             .chatroom-meta { grid-template-columns: 1fr; }
         }
+        .mobile-header { display: none; }
     </style>
 </head>
 <body>
-    <div class="header">
-        <div class="header-content">
-            <h1><i class="fab fa-whatsapp"></i> NxtQ Support</h1>
-            <p>Advanced WhatsApp Customer Support Dashboard</p>
+    <div class="app-layout">
+        <!-- Sidebar Navigation -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1><i class="fab fa-whatsapp"></i> NxtQ Support</h1>
+                <p>WhatsApp Business CRM</p>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/" class="sidebar-nav-item active">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/crm" class="sidebar-nav-item">
+                    <i class="fas fa-robot"></i>
+                    <span>AI Agents</span>
+                </a>
+                <a href="#" class="sidebar-nav-item">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Analytics</span>
+                </a>
+                <a href="#" class="sidebar-nav-item">
+                    <i class="fas fa-tags"></i>
+                    <span>Tags</span>
+                </a>
+                <a href="#" class="sidebar-nav-item">
+                    <i class="fas fa-clock"></i>
+                    <span>SLA Management</span>
+                </a>
+                <a href="#" class="sidebar-nav-item">
+                    <i class="fas fa-star"></i>
+                    <span>Feedback</span>
+                </a>
+                <a href="#" class="sidebar-nav-item">
+                    <i class="fas fa-credit-card"></i>
+                    <span>Billing</span>
+                </a>
+                <a href="#" class="sidebar-nav-item">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </a>
+            </nav>
         </div>
-    </div>
-    
-    <div class="container">
-        <nav class="dashboard-nav">
-            <a href="/" class="nav-item active"><i class="fas fa-home"></i> Dashboard</a>
-            <a href="/crm" class="nav-item"><i class="fas fa-robot"></i> CRM</a>
-            <a href="#" class="nav-item"><i class="fas fa-chart-bar"></i> Analytics</a>
-            <a href="#" class="nav-item"><i class="fas fa-cog"></i> Settings</a>
-        </nav>
+        
+        <!-- Mobile Header -->
+        <div class="mobile-header">
+            <button class="mobile-menu-btn">
+                <i class="fas fa-bars"></i>
+            </button>
+            <h1><i class="fab fa-whatsapp"></i> NxtQ Support</h1>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="container">
+                <div class="page-header">
+                    <h1 class="page-title">Dashboard</h1>
+                    <p class="page-subtitle">Monitor and manage your WhatsApp customer conversations</p>
+                </div>
         
         <div class="stats">
             <div class="stat-card">
@@ -136,7 +207,7 @@
         </div>
         
         <div class="section-header">
-            <h2 class="section-title">Customer Conversations</h2>
+            <h2 class="section-title"><i class="fas fa-comments"></i> Customer Conversations</h2>
             <div class="search-box">
                 <i class="fas fa-search"></i>
                 <input type="text" placeholder="Search conversations..." id="searchInput">
@@ -202,6 +273,7 @@
                     </a>
                 <% }) %>
             <% } %>
+            </div>
         </div>
     </div>
     

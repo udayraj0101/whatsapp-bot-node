@@ -7,54 +7,117 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary: #25D366;
-            --primary-dark: #128C7E;
-            --secondary: #34495e;
+            --primary: #1e40af;
+            --primary-dark: #1e3a8a;
+            --primary-light: #3b82f6;
+            --secondary: #64748b;
+            --accent: #0ea5e9;
             --background: #f8fafc;
             --surface: #ffffff;
-            --text-primary: #1a202c;
-            --text-secondary: #718096;
+            --surface-dark: #0f172a;
+            --text-primary: #0f172a;
+            --text-secondary: #64748b;
+            --text-light: #94a3b8;
             --border: #e2e8f0;
-            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --border-dark: #334155;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', sans-serif; background: var(--background); color: var(--text-primary); }
-        .header { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; padding: 2rem 0; }
-        .header-content { max-width: 1200px; margin: 0 auto; padding: 0 2rem; }
-        .header h1 { font-size: 2.5rem; font-weight: 700; margin-bottom: 0.5rem; }
-        .header p { opacity: 0.9; font-size: 1.1rem; }
-        .container { max-width: 1200px; margin: 2rem auto; padding: 0 2rem; }
-        .nav { display: flex; gap: 1rem; margin-bottom: 2rem; }
-        .nav-item { padding: 0.75rem 1.5rem; background: var(--surface); border-radius: 8px; text-decoration: none; color: var(--text-secondary); transition: all 0.2s; }
-        .nav-item.active, .nav-item:hover { background: var(--primary); color: white; }
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--background); color: var(--text-primary); line-height: 1.6; margin: 0; }
+        .app-layout { display: flex; min-height: 100vh; }
+        .sidebar { width: 280px; background: var(--surface-dark); color: white; padding: 2rem 0; position: fixed; height: 100vh; overflow-y: auto; z-index: 100; }
+        .sidebar-header { padding: 0 2rem 2rem; border-bottom: 1px solid var(--border-dark); margin-bottom: 2rem; }
+        .sidebar-header h1 { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.75rem; }
+        .sidebar-header p { color: #94a3b8; font-size: 0.875rem; }
+        .sidebar-nav { padding: 0 1rem; }
+        .sidebar-nav-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; margin-bottom: 0.5rem; border-radius: 8px; color: #cbd5e1; text-decoration: none; transition: all 0.2s; }
+        .sidebar-nav-item:hover { background: rgba(59, 130, 246, 0.1); color: var(--primary-light); }
+        .sidebar-nav-item.active { background: var(--primary); color: white; box-shadow: var(--shadow-md); }
+        .sidebar-nav-item i { width: 20px; text-align: center; }
+        .main-content { flex: 1; margin-left: 280px; }
+        .page-header { background: var(--surface); border-radius: 16px; padding: 2rem; margin-bottom: 2rem; box-shadow: var(--shadow); border: 1px solid var(--border); }
+        .page-title { font-size: 1.75rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.75rem; }
+        .page-subtitle { color: var(--text-secondary); font-size: 1rem; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+
         .agents-grid { display: grid; gap: 1.5rem; }
-        .agent-card { background: var(--surface); border-radius: 12px; padding: 2rem; box-shadow: var(--shadow); border: 1px solid var(--border); }
+        .agent-card { background: var(--surface); border-radius: 16px; padding: 2rem; box-shadow: var(--shadow-md); border: 1px solid var(--border); transition: all 0.3s ease; position: relative; }
+        .agent-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--primary), var(--accent)); border-radius: 16px 16px 0 0; }
+        .agent-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
         .agent-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-        .agent-name { font-size: 1.2rem; font-weight: 600; color: var(--text-primary); }
-        .agent-id { color: var(--text-secondary); font-size: 0.9rem; }
-        .agent-context { background: #f8fafc; padding: 1rem; border-radius: 8px; margin: 1rem 0; max-height: 100px; overflow: hidden; }
+        .agent-name { font-size: 1.25rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.25rem; }
+        .agent-id { color: var(--text-secondary); font-size: 0.875rem; display: flex; align-items: center; gap: 0.5rem; }
+        .agent-context { background: #f1f5f9; padding: 1rem; border-radius: 8px; margin: 1rem 0; max-height: 120px; overflow: hidden; border-left: 3px solid var(--primary); font-family: 'Monaco', 'Menlo', monospace; font-size: 0.875rem; line-height: 1.5; }
         .agent-meta { display: flex; gap: 2rem; margin-top: 1rem; }
-        .meta-item { display: flex; align-items: center; gap: 0.5rem; color: var(--text-secondary); font-size: 0.9rem; }
-        .edit-btn { padding: 0.5rem 1rem; background: var(--primary); color: white; text-decoration: none; border-radius: 6px; transition: all 0.2s; }
-        .edit-btn:hover { background: var(--primary-dark); }
-        .create-btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 1rem 2rem; background: var(--primary); color: white; text-decoration: none; border-radius: 8px; margin-bottom: 2rem; }
-        .empty-state { text-align: center; padding: 4rem 2rem; }
-        .empty-state i { font-size: 3rem; color: #cbd5e0; margin-bottom: 1rem; }
+        .meta-item { display: flex; align-items: center; gap: 0.5rem; color: var(--text-secondary); font-size: 0.875rem; }
+        .meta-item i { width: 16px; text-align: center; }
+        .edit-btn { padding: 0.75rem 1.25rem; background: var(--primary); color: white; text-decoration: none; border-radius: 8px; transition: all 0.2s; font-weight: 500; display: inline-flex; align-items: center; gap: 0.5rem; }
+        .edit-btn:hover { background: var(--primary-dark); transform: translateY(-1px); box-shadow: var(--shadow-md); }
+        .create-btn { display: inline-flex; align-items: center; gap: 0.75rem; padding: 1rem 2rem; background: linear-gradient(135deg, var(--primary), var(--primary-light)); color: white; text-decoration: none; border-radius: 12px; margin-bottom: 2rem; font-weight: 500; transition: all 0.2s; box-shadow: var(--shadow-md); }
+        .create-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+        .empty-state { text-align: center; padding: 6rem 2rem; }
+        .empty-state-icon { width: 80px; height: 80px; border-radius: 20px; background: linear-gradient(135deg, var(--primary-light), var(--primary)); display: flex; align-items: center; justify-content: center; margin: 0 auto 2rem; box-shadow: var(--shadow-lg); }
+        .empty-state-icon i { font-size: 2rem; color: white; }
+        .empty-state h3 { font-size: 1.5rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; }
+        .empty-state p { color: var(--text-secondary); max-width: 400px; margin: 0 auto; }
     </style>
 </head>
 <body>
-    <div class="header">
-        <div class="header-content">
-            <h1><i class="fas fa-cogs"></i> NxtQ CRM</h1>
-            <p>Agent Context Management System</p>
+    <div class="app-layout">
+        <!-- Sidebar Navigation -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1><i class="fab fa-whatsapp"></i> NxtQ Support</h1>
+                <p>WhatsApp Business CRM</p>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/" class="sidebar-nav-item">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/crm" class="sidebar-nav-item active">
+                    <i class="fas fa-robot"></i>
+                    <span>AI Agents</span>
+                </a>
+                <a href="#" class="sidebar-nav-item">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Analytics</span>
+                </a>
+                <a href="#" class="sidebar-nav-item">
+                    <i class="fas fa-tags"></i>
+                    <span>Tags</span>
+                </a>
+                <a href="#" class="sidebar-nav-item">
+                    <i class="fas fa-clock"></i>
+                    <span>SLA Management</span>
+                </a>
+                <a href="#" class="sidebar-nav-item">
+                    <i class="fas fa-star"></i>
+                    <span>Feedback</span>
+                </a>
+                <a href="#" class="sidebar-nav-item">
+                    <i class="fas fa-credit-card"></i>
+                    <span>Billing</span>
+                </a>
+                <a href="#" class="sidebar-nav-item">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </a>
+            </nav>
         </div>
-    </div>
-    
-    <div class="container">
-        <nav class="nav">
-            <a href="/" class="nav-item"><i class="fas fa-home"></i> Dashboard</a>
-            <a href="/crm" class="nav-item active"><i class="fas fa-robot"></i> Agents</a>
-        </nav>
+        
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="container">
+                <div class="page-header">
+                    <h1 class="page-title"><i class="fas fa-robot"></i> AI Agent Management</h1>
+                    <p class="page-subtitle">Configure and manage your WhatsApp AI agents and their contexts</p>
+                </div>
         
         <a href="/crm/agent/1/10" class="create-btn">
             <i class="fas fa-plus"></i> Create New Agent
@@ -63,9 +126,11 @@
         <div class="agents-grid">
             <% if (agents.length === 0) { %>
                 <div class="empty-state">
-                    <i class="fas fa-robot"></i>
+                    <div class="empty-state-icon">
+                        <i class="fas fa-robot"></i>
+                    </div>
                     <h3>No agents configured</h3>
-                    <p>Create your first agent to get started</p>
+                    <p>Create your first AI agent to start handling customer conversations automatically</p>
                 </div>
             <% } else { %>
                 <% agents.forEach(agent => { %>
@@ -73,7 +138,10 @@
                         <div class="agent-header">
                             <div>
                                 <div class="agent-name"><%= agent.name %></div>
-                                <div class="agent-id">Business: <%= agent.business_id %> | Agent: <%= agent.agent_id %></div>
+                                <div class="agent-id">
+                                    <i class="fas fa-building"></i> Business: <%= agent.business_id %>
+                                    <i class="fas fa-robot"></i> Agent: <%= agent.agent_id %>
+                                </div>
                             </div>
                             <a href="/crm/agent/<%= agent.business_id %>/<%= agent.agent_id %>" class="edit-btn">
                                 <i class="fas fa-edit"></i> Edit
@@ -101,6 +169,7 @@
                     </div>
                 <% }) %>
             <% } %>
+            </div>
         </div>
     </div>
 </body>
