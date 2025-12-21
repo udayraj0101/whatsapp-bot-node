@@ -16,7 +16,11 @@ const chatroomSchema = new mongoose.Schema({
     business_id: { type: Number, required: true },
     agent_id: { type: Number, required: true },
     thread_id: { type: String, required: true, unique: true },
-    phone_number: { type: String, required: true }
+    phone_number: { type: String, required: true },
+    // MVP: SLA Management & Tagging
+    status: { type: String, enum: ['new', 'pending', 'overdue', 'closed'], default: 'new' },
+    tags: [{ type: String }],
+    sla_deadline: { type: Date }
 }, {
     timestamps: true
 });
@@ -29,7 +33,11 @@ const messageSchema = new mongoose.Schema({
     media_type: { type: String, enum: ['image', 'audio', 'video', 'document'] },
     media_url: { type: String },
     whatsapp_message_id: { type: String },
-    phone_number: { type: String, required: true }
+    phone_number: { type: String, required: true },
+    // MVP: Conversation Intelligence
+    intent: { type: String, enum: ['query', 'complaint', 'need_action', 'feedback'] },
+    sentiment: { type: String, enum: ['positive', 'neutral', 'negative'] },
+    summary: { type: String }
 }, {
     timestamps: true
 });
@@ -47,9 +55,22 @@ const agentContextSchema = new mongoose.Schema({
     timestamps: true
 });
 
+// MVP: Billing Record Schema
+const billingRecordSchema = new mongoose.Schema({
+    chatroom_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Chatroom', required: true },
+    interaction_type: { type: String, enum: ['text', 'audio', 'image'], required: true },
+    pricing_case: { type: String, enum: ['new_user_4h', 'new_user_20h', 'existing_user'], required: true },
+    base_cost: { type: Number, required: true },
+    markup_percentage: { type: Number, default: 0 },
+    final_cost: { type: Number, required: true }
+}, {
+    timestamps: true
+});
+
 const Chatroom = mongoose.model('Chatroom', chatroomSchema);
 const Message = mongoose.model('Message', messageSchema);
 const AgentContext = mongoose.model('AgentContext', agentContextSchema);
+const BillingRecord = mongoose.model('BillingRecord', billingRecordSchema);
 
 // Create or get chatroom
 async function createOrGetChatroom(businessId, agentId, threadId, phoneNumber) {
@@ -149,6 +170,7 @@ module.exports = {
     Chatroom,
     Message,
     AgentContext,
+    BillingRecord,
     createOrGetChatroom,
     saveMessage,
     getChatroomMessages,
