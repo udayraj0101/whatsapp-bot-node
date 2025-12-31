@@ -80,6 +80,25 @@
         .media-link:hover { background: rgba(255,255,255,0.2); transform: translateY(-1px); }
         .transcription { background: rgba(255,255,255,0.1); border-radius: 8px; padding: 0.75rem; margin-top: 0.5rem; font-style: italic; border-left: 3px solid rgba(255,255,255,0.3); }
         .bot .transcription { background: #e2e8f0; border-left-color: var(--primary); }
+        
+        /* AI Intelligence Badges */
+        .intent-badge, .sentiment-badge {
+            padding: 0.2rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 500;
+            text-transform: capitalize;
+            margin-left: 0.5rem;
+        }
+        
+        .intent-query { background: rgba(30, 64, 175, 0.1); color: #1e40af; }
+        .intent-complaint { background: rgba(220, 38, 38, 0.1); color: #dc2626; }
+        .intent-need_action { background: rgba(217, 119, 6, 0.1); color: #d97706; }
+        .intent-feedback { background: rgba(5, 150, 105, 0.1); color: #059669; }
+        
+        .sentiment-positive { background: rgba(22, 101, 52, 0.1); color: #166534; }
+        .sentiment-neutral { background: rgba(55, 65, 81, 0.1); color: #374151; }
+        .sentiment-negative { background: rgba(220, 38, 38, 0.1); color: #dc2626; }
         .time { font-size: 0.75rem; color: rgba(255,255,255,0.8); margin-top: 0.75rem; display: flex; align-items: center; gap: 0.5rem; }
         .bot .time { color: var(--text-secondary); }
         .empty-messages { text-align: center; padding: 6rem 2rem; color: var(--text-secondary); }
@@ -111,31 +130,31 @@
                     <i class="fas fa-home"></i>
                     <span>Dashboard</span>
                 </a>
-                <a href="/crm" class="sidebar-nav-item">
+                <a href="/agents" class="sidebar-nav-item">
                     <i class="fas fa-robot"></i>
                     <span>AI Agents</span>
                 </a>
-                <a href="#" class="sidebar-nav-item">
+                <a href="/analytics" class="sidebar-nav-item">
                     <i class="fas fa-chart-line"></i>
                     <span>Analytics</span>
                 </a>
-                <a href="#" class="sidebar-nav-item">
+                <a href="/tags" class="sidebar-nav-item">
                     <i class="fas fa-tags"></i>
                     <span>Tags</span>
                 </a>
-                <a href="#" class="sidebar-nav-item">
+                <a href="/sla" class="sidebar-nav-item">
                     <i class="fas fa-clock"></i>
                     <span>SLA Management</span>
                 </a>
-                <a href="#" class="sidebar-nav-item">
+                <a href="/feedback" class="sidebar-nav-item">
                     <i class="fas fa-star"></i>
                     <span>Feedback</span>
                 </a>
-                <a href="#" class="sidebar-nav-item">
+                <a href="/billing" class="sidebar-nav-item">
                     <i class="fas fa-credit-card"></i>
                     <span>Billing</span>
                 </a>
-                <a href="#" class="sidebar-nav-item">
+                <a href="/settings" class="sidebar-nav-item">
                     <i class="fas fa-cog"></i>
                     <span>Settings</span>
                 </a>
@@ -146,8 +165,8 @@
         <div class="main-content">
             <div class="header">
                 <div class="header-content">
-                    <a href="/" class="back">
-                        <i class="fas fa-arrow-left"></i> Back to Dashboard
+                    <a href="/conversations" class="back">
+                        <i class="fas fa-arrow-left"></i>
                     </a>
             
             <div class="chat-header">
@@ -202,12 +221,12 @@
                 <div class="stat-label">AI Responses</div>
             </div>
             <div class="stat-card">
-                <div class="stat-number"><%= messages.filter(m => m.media_url).length %></div>
-                <div class="stat-label">Media Shared</div>
+                <div class="stat-number"><%= insights.aiAnalyzedMessages %></div>
+                <div class="stat-label">AI Analyzed</div>
             </div>
             <div class="stat-card">
-                <div class="stat-number"><%= messages.filter(m => m.media_type === 'audio').length %></div>
-                <div class="stat-label">Voice Messages</div>
+                <div class="stat-number"><%= insights.sentiments.positive %>/<%= insights.sentiments.neutral %>/<%= insights.sentiments.negative %></div>
+                <div class="stat-label">+/~/- Sentiment</div>
             </div>
         </div>
         
@@ -224,6 +243,12 @@
                         <div class="message-header">
                             <% if (message.message_type === 'user') { %>
                                 <i class="fas fa-user-circle"></i> Customer
+                                <% if (message.intent) { %>
+                                    <span class="intent-badge intent-<%= message.intent %>"><%= message.intent %></span>
+                                <% } %>
+                                <% if (message.sentiment) { %>
+                                    <span class="sentiment-badge sentiment-<%= message.sentiment %>"><%= message.sentiment %></span>
+                                <% } %>
                             <% } else { %>
                                 <i class="fas fa-robot"></i> NxtQ AI Assistant
                             <% } %>

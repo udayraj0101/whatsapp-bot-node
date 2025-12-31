@@ -1,0 +1,241 @@
+<%- include('partials/layout-header', { title: 'AI Agent', currentPage: 'agents' }) %>
+
+<div class="content-header">
+    <h1><i class="fas fa-robot"></i> AI Agent Configuration</h1>
+    <p>Configure your WhatsApp AI agent context and behavior</p>
+</div>
+
+<% 
+// Find the default agent (agent_id: 1)
+const defaultAgent = agents.find(agent => agent.agent_id === 1);
+%>
+
+<div class="agent-container">
+    <% if (!defaultAgent) { %>
+        <div class="empty-state">
+            <div class="empty-state-icon">
+                <i class="fas fa-robot"></i>
+            </div>
+            <h3>Agent not configured</h3>
+            <p>Your AI agent needs to be set up to handle customer conversations</p>
+            <a href="/agents/edit/<%= parseInt(agents[0]?.business_id || '1') %>/1" class="setup-btn">
+                <i class="fas fa-cog"></i> Setup Agent
+            </a>
+        </div>
+    <% } else { %>
+        <div class="agent-card">
+            <div class="agent-header">
+                <div class="agent-info">
+                    <div class="agent-name"><%= defaultAgent.name %></div>
+                    <div class="agent-status">
+                        <i class="fas fa-<%= defaultAgent.is_active ? 'check-circle' : 'times-circle' %>"></i>
+                        <%= defaultAgent.is_active ? 'Active' : 'Inactive' %>
+                    </div>
+                </div>
+                <a href="/agents/edit/<%= defaultAgent.business_id %>/1" class="edit-btn">
+                    <i class="fas fa-edit"></i> Edit Agent
+                </a>
+            </div>
+            
+            <div class="agent-context">
+                <h4>Current Context:</h4>
+                <div class="context-preview">
+                    <%= defaultAgent.context.substring(0, 300) %><%= defaultAgent.context.length > 300 ? '...' : '' %>
+                </div>
+            </div>
+            
+            <div class="agent-meta">
+                <div class="meta-item">
+                    <i class="fas fa-user"></i>
+                    <span>Updated by: <%= defaultAgent.updated_by %></span>
+                </div>
+                <div class="meta-item">
+                    <i class="fas fa-clock"></i>
+                    <span>Last updated: <%= new Date(defaultAgent.updatedAt).toLocaleString() %></span>
+                </div>
+            </div>
+        </div>
+    <% } %>
+</div>
+
+<style>
+.agent-container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.agent-card {
+    background: var(--surface-color);
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.agent-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+    border-radius: 16px 16px 0 0;
+}
+
+.agent-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+.agent-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.agent-name {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+
+
+.agent-context {
+    margin: 1.5rem 0;
+}
+
+.agent-meta {
+    display: flex;
+    gap: 2rem;
+    margin-top: 1rem;
+}
+
+.meta-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.meta-item i {
+    width: 16px;
+    text-align: center;
+}
+
+.edit-btn {
+    padding: 0.75rem 1.25rem;
+    background: var(--primary-color);
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    transition: all 0.2s;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.edit-btn:hover {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.setup-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 2rem;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+    color: white;
+    text-decoration: none;
+    border-radius: 12px;
+    margin-top: 1.5rem;
+    font-weight: 500;
+    transition: all 0.2s;
+    box-shadow: var(--shadow-md);
+}
+
+.setup-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+.agent-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.agent-status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.context-preview {
+    background: #f8fafc;
+    padding: 1rem;
+    border-radius: 8px;
+    border-left: 3px solid var(--primary-color);
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.agent-context h4 {
+    margin: 0 0 0.75rem 0;
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 6rem 2rem;
+}
+
+.empty-state-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 20px;
+    background: linear-gradient(135deg, var(--primary-light), var(--primary-color));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 2rem;
+    box-shadow: var(--shadow-lg);
+}
+
+.empty-state-icon i {
+    font-size: 2rem;
+    color: white;
+}
+
+.empty-state h3 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+    color: var(--text-secondary);
+    max-width: 400px;
+    margin: 0 auto;
+}
+</style>
+
+<%- include('partials/layout-footer') %>

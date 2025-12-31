@@ -1,298 +1,387 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>NxtQ Support - Dashboard</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --primary: #1e40af;
-            --primary-dark: #1e3a8a;
-            --primary-light: #3b82f6;
-            --secondary: #64748b;
-            --accent: #0ea5e9;
-            --background: #f8fafc;
-            --surface: #ffffff;
-            --surface-dark: #0f172a;
-            --text-primary: #0f172a;
-            --text-secondary: #64748b;
-            --text-light: #94a3b8;
-            --border: #e2e8f0;
-            --border-dark: #334155;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --error: #ef4444;
-            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-        }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--background); color: var(--text-primary); line-height: 1.6; margin: 0; }
-        .app-layout { display: flex; min-height: 100vh; }
-        .sidebar { width: 280px; background: var(--surface-dark); color: white; padding: 2rem 0; position: fixed; height: 100vh; overflow-y: auto; z-index: 100; }
-        .sidebar-header { padding: 0 2rem 2rem; border-bottom: 1px solid var(--border-dark); margin-bottom: 2rem; }
-        .sidebar-header h1 { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.75rem; }
-        .sidebar-header p { color: #94a3b8; font-size: 0.875rem; }
-        .sidebar-nav { padding: 0 1rem; }
-        .sidebar-nav-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; margin-bottom: 0.5rem; border-radius: 8px; color: #cbd5e1; text-decoration: none; transition: all 0.2s; }
-        .sidebar-nav-item:hover { background: rgba(59, 130, 246, 0.1); color: var(--primary-light); }
-        .sidebar-nav-item.active { background: var(--primary); color: white; box-shadow: var(--shadow-md); }
-        .sidebar-nav-item i { width: 20px; text-align: center; }
-        .main-content { flex: 1; margin-left: 280px; }
-        .header { background: linear-gradient(135deg, var(--surface-dark) 0%, var(--primary-dark) 100%); color: white; padding: 2rem 0; position: relative; overflow: hidden; border-bottom: 1px solid var(--border-dark); }
-        .header::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="50" cy="50" r="1" fill="%23ffffff" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>'); }
-        .header-content { max-width: 1200px; margin: 0 auto; padding: 0 2rem; position: relative; z-index: 1; }
-        .header h1 { font-size: 2rem; font-weight: 600; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 1rem; }
-        .header p { opacity: 0.8; font-size: 1rem; font-weight: 400; color: #cbd5e1; }
-        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
-        .page-header { background: var(--surface); border-radius: 16px; padding: 2rem; margin-bottom: 2rem; box-shadow: var(--shadow); border: 1px solid var(--border); }
-        .page-title { font-size: 1.75rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; }
-        .page-subtitle { color: var(--text-secondary); font-size: 1rem; }
-        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 3rem; }
-        .stat-card { background: var(--surface); padding: 2rem; border-radius: 16px; box-shadow: var(--shadow); border: 1px solid var(--border); transition: all 0.3s ease; position: relative; overflow: hidden; }
-        .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--primary), var(--accent)); }
-        .stat-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
-        .stat-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
-        .stat-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; }
-        .stat-number { font-size: 2.5rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem; }
-        .stat-label { color: var(--text-secondary); font-weight: 500; }
-        .stat-change { font-size: 0.875rem; color: var(--primary); font-weight: 500; }
-        .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; }
-        .section-title { font-size: 1.5rem; font-weight: 600; color: var(--text-primary); }
-        .search-box { position: relative; }
-        .search-box input { padding: 0.75rem 1rem 0.75rem 3rem; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); width: 300px; }
-        .search-box i { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-secondary); }
-        .chatrooms-grid { display: grid; gap: 1.5rem; }
-        .chatroom { background: var(--surface); border-radius: 16px; padding: 2rem; box-shadow: var(--shadow); border: 1px solid var(--border); transition: all 0.3s ease; position: relative; }
-        .chatroom::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: linear-gradient(180deg, var(--primary), var(--accent)); border-radius: 16px 0 0 16px; }
-        .chatroom:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
-        .chatroom-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
-        .customer-info { display: flex; align-items: center; gap: 1rem; }
-        .avatar { width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; box-shadow: var(--shadow-md); }
-        .customer-details h3 { font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.25rem; }
-        .customer-details p { color: var(--text-secondary); font-size: 0.9rem; }
-        .status-badge { padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 500; }
-        .status-active { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
-        .status-inactive { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
-        .chatroom-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
-        .meta-item { display: flex; align-items: center; gap: 0.5rem; color: var(--text-secondary); font-size: 0.9rem; }
-        .meta-item i { width: 16px; text-align: center; }
-        .last-message { background: #f1f5f9; padding: 1rem; border-radius: 8px; margin-top: 1rem; border-left: 3px solid var(--primary); }
-        .last-message-text { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.4; }
-        .time-ago { color: var(--text-secondary); font-size: 0.8rem; margin-top: 0.5rem; }
-        a { text-decoration: none; color: inherit; }
-        .empty-state { text-align: center; padding: 6rem 2rem; }
-        .empty-state-icon { width: 80px; height: 80px; border-radius: 20px; background: linear-gradient(135deg, var(--primary-light), var(--primary)); display: flex; align-items: center; justify-content: center; margin: 0 auto 2rem; box-shadow: var(--shadow-lg); }
-        .empty-state-icon i { font-size: 2rem; color: white; }
-        .empty-state h3 { font-size: 1.5rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; }
-        .empty-state p { color: var(--text-secondary); max-width: 400px; margin: 0 auto; }
-        @media (max-width: 1024px) {
-            .sidebar { transform: translateX(-100%); }
-            .main-content { margin-left: 0; }
-            .mobile-header { display: block; background: var(--surface-dark); color: white; padding: 1rem 2rem; }
-            .mobile-menu-btn { background: none; border: none; color: white; font-size: 1.25rem; cursor: pointer; }
-        }
-        @media (max-width: 768px) {
-            .container { padding: 1rem; }
-            .stats { grid-template-columns: 1fr; }
-            .search-box input { width: 100%; }
-            .chatroom-meta { grid-template-columns: 1fr; }
-        }
-        .mobile-header { display: none; }
-    </style>
-</head>
-<body>
-    <div class="app-layout">
-        <!-- Sidebar Navigation -->
-        <div class="sidebar">
-            <div class="sidebar-header">
-                <h1><i class="fab fa-whatsapp"></i> NxtQ Support</h1>
-                <p>WhatsApp Business CRM</p>
-            </div>
-            <nav class="sidebar-nav">
-                <a href="/" class="sidebar-nav-item active">
-                    <i class="fas fa-home"></i>
-                    <span>Dashboard</span>
-                </a>
-                <a href="/crm" class="sidebar-nav-item">
-                    <i class="fas fa-robot"></i>
-                    <span>AI Agents</span>
-                </a>
-                <a href="#" class="sidebar-nav-item">
-                    <i class="fas fa-chart-line"></i>
-                    <span>Analytics</span>
-                </a>
-                <a href="#" class="sidebar-nav-item">
-                    <i class="fas fa-tags"></i>
-                    <span>Tags</span>
-                </a>
-                <a href="#" class="sidebar-nav-item">
-                    <i class="fas fa-clock"></i>
-                    <span>SLA Management</span>
-                </a>
-                <a href="#" class="sidebar-nav-item">
-                    <i class="fas fa-star"></i>
-                    <span>Feedback</span>
-                </a>
-                <a href="#" class="sidebar-nav-item">
-                    <i class="fas fa-credit-card"></i>
-                    <span>Billing</span>
-                </a>
-                <a href="#" class="sidebar-nav-item">
-                    <i class="fas fa-cog"></i>
-                    <span>Settings</span>
-                </a>
-            </nav>
-        </div>
-        
-        <!-- Mobile Header -->
-        <div class="mobile-header">
-            <button class="mobile-menu-btn">
-                <i class="fas fa-bars"></i>
-            </button>
-            <h1><i class="fab fa-whatsapp"></i> NxtQ Support</h1>
-        </div>
-        
-        <!-- Main Content -->
-        <div class="main-content">
-            <div class="container">
-                <div class="page-header">
-                    <h1 class="page-title">Dashboard</h1>
-                    <p class="page-subtitle">Monitor and manage your WhatsApp customer conversations</p>
-                </div>
-        
-        <div class="stats">
-            <div class="stat-card">
-                <div class="stat-header">
-                    <div class="stat-icon" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white;">
-                        <i class="fas fa-comments"></i>
-                    </div>
-                </div>
-                <div class="stat-number"><%= chatrooms.length %></div>
-                <div class="stat-label">Total Conversations</div>
-                <div class="stat-change">+12% from last month</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-header">
-                    <div class="stat-icon" style="background: linear-gradient(135deg, #10b981, #059669); color: white;">
-                        <i class="fas fa-clock"></i>
-                    </div>
-                </div>
-                <div class="stat-number"><%= chatrooms.filter(c => new Date() - new Date(c.updatedAt) < 24*60*60*1000).length %></div>
-                <div class="stat-label">Active Today</div>
-                <div class="stat-change">+5% from yesterday</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-header">
-                    <div class="stat-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white;">
-                        <i class="fas fa-calendar-week"></i>
-                    </div>
-                </div>
-                <div class="stat-number"><%= chatrooms.filter(c => new Date() - new Date(c.updatedAt) < 7*24*60*60*1000).length %></div>
-                <div class="stat-label">This Week</div>
-                <div class="stat-change">+8% from last week</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-header">
-                    <div class="stat-icon" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white;">
-                        <i class="fas fa-robot"></i>
-                    </div>
-                </div>
-                <div class="stat-number">94%</div>
-                <div class="stat-label">AI Resolution Rate</div>
-                <div class="stat-change">+2% improvement</div>
+<%- include('partials/layout-header', { title: 'Dashboard', currentPage: 'dashboard' }) %>
+
+<div class="content-header">
+    <h1><i class="fas fa-home"></i> Dashboard</h1>
+    <p>Monitor and manage your WhatsApp customer conversations</p>
+</div>
+
+<div class="stats">
+    <div class="stat-card">
+        <div class="stat-header">
+            <div class="stat-icon" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white;">
+                <i class="fas fa-comments"></i>
             </div>
         </div>
-        
-        <div class="section-header">
-            <h2 class="section-title"><i class="fas fa-comments"></i> Customer Conversations</h2>
-            <div class="search-box">
-                <i class="fas fa-search"></i>
-                <input type="text" placeholder="Search conversations..." id="searchInput">
+        <div class="stat-number"><%= chatrooms.length %></div>
+        <div class="stat-label">Total Conversations</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-header">
+            <div class="stat-icon" style="background: linear-gradient(135deg, #10b981, #059669); color: white;">
+                <i class="fas fa-clock"></i>
             </div>
         </div>
-        
-        <div class="chatrooms-grid">
-            <% if (chatrooms.length === 0) { %>
-                <div class="empty-state">
-                    <div class="empty-state-icon">
-                        <i class="fas fa-comments"></i>
-                    </div>
-                    <h3>No conversations yet</h3>
-                    <p>Customer conversations will appear here once they start chatting with your WhatsApp Business account</p>
-                </div>
-            <% } else { %>
-                <% chatrooms.forEach(chatroom => { %>
-                    <% const isActive = new Date() - new Date(chatroom.updatedAt) < 24*60*60*1000; %>
-                    <a href="/chatroom/<%= chatroom._id %>">
-                        <div class="chatroom">
-                            <div class="chatroom-header">
-                                <div class="customer-info">
-                                    <div class="avatar">
-                                        <%= chatroom.phone_number.slice(-2) %>
-                                    </div>
-                                    <div class="customer-details">
-                                        <h3><%= chatroom.phone_number %></h3>
-                                        <p>Thread: <%= chatroom.thread_id.substring(0, 16) %>...</p>
-                                    </div>
-                                </div>
-                                <div class="status-badge <%= isActive ? 'status-active' : 'status-inactive' %>">
-                                    <i class="fas fa-circle" style="font-size: 0.5rem; margin-right: 0.25rem;"></i>
-                                    <%= isActive ? 'Active' : 'Inactive' %>
-                                </div>
-                            </div>
-                            
-                            <div class="chatroom-meta">
-                                <div class="meta-item">
-                                    <i class="fas fa-building"></i>
-                                    Business ID: <%= chatroom.business_id %>
-                                </div>
-                                <div class="meta-item">
-                                    <i class="fas fa-robot"></i>
-                                    Agent ID: <%= chatroom.agent_id %>
-                                </div>
-                                <div class="meta-item">
-                                    <i class="fas fa-calendar-plus"></i>
-                                    Created: <%= new Date(chatroom.createdAt).toLocaleDateString() %>
-                                </div>
-                                <div class="meta-item">
-                                    <i class="fas fa-clock"></i>
-                                    Last: <%= new Date(chatroom.updatedAt).toLocaleString() %>
-                                </div>
-                            </div>
-                            
-                            <div class="last-message">
-                                <div class="last-message-text">
-                                    <i class="fas fa-comment-dots"></i>
-                                    Click to view conversation history and messages
-                                </div>
-                            </div>
-                        </div>
-                    </a>
-                <% }) %>
-            <% } %>
+        <div class="stat-number"><%= chatrooms.filter(c => new Date() - new Date(c.updatedAt) < 24*60*60*1000).length %></div>
+        <div class="stat-label">Active Today</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-header">
+            <div class="stat-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white;">
+                <i class="fas fa-calendar-week"></i>
+            </div>
+        </div>
+        <div class="stat-number"><%= chatrooms.filter(c => new Date() - new Date(c.updatedAt) < 7*24*60*60*1000).length %></div>
+        <div class="stat-label">This Week</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-header">
+            <div class="stat-icon" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white;">
+                <i class="fas fa-robot"></i>
+            </div>
+        </div>
+        <div class="stat-number"><%= aiResponseRate %>%</div>
+        <div class="stat-label">AI Response Rate</div>
+        <div class="stat-detail"><%= totalBotResponses %>/<%= totalUserMessages %> responses</div>
+    </div>
+</div>
+
+<!-- Analytics Section -->
+<div class="analytics-section">
+    <div class="section-header">
+        <h2 class="section-title"><i class="fas fa-chart-line"></i> Analytics Overview</h2>
+    </div>
+    
+    <div class="analytics-stats">
+        <div class="analytics-card">
+            <div class="analytics-icon positive">
+                <i class="fas fa-smile"></i>
+            </div>
+            <div class="analytics-details">
+                <h3><%= analytics ? analytics.sentiments.positive : 0 %></h3>
+                <p>Positive Sentiment</p>
+            </div>
+        </div>
+        <div class="analytics-card">
+            <div class="analytics-icon warning">
+                <i class="fas fa-meh"></i>
+            </div>
+            <div class="analytics-details">
+                <h3><%= analytics ? analytics.sentiments.neutral : 0 %></h3>
+                <p>Neutral Sentiment</p>
+            </div>
+        </div>
+        <div class="analytics-card">
+            <div class="analytics-icon negative">
+                <i class="fas fa-frown"></i>
+            </div>
+            <div class="analytics-details">
+                <h3><%= analytics ? analytics.sentiments.negative : 0 %></h3>
+                <p>Negative Sentiment</p>
+            </div>
+        </div>
+        <div class="analytics-card">
+            <div class="analytics-icon">
+                <i class="fas fa-brain"></i>
+            </div>
+            <div class="analytics-details">
+                <h3><%= analytics ? analytics.totalAnalyzed : 0 %></h3>
+                <p>Messages Analyzed</p>
             </div>
         </div>
     </div>
     
-    <script>
-        // Search functionality
-        document.getElementById('searchInput')?.addEventListener('input', function(e) {
-            const searchTerm = e.target.value.toLowerCase();
-            const chatrooms = document.querySelectorAll('.chatroom');
-            
-            chatrooms.forEach(chatroom => {
-                const text = chatroom.textContent.toLowerCase();
-                const parent = chatroom.parentElement;
-                if (text.includes(searchTerm)) {
-                    parent.style.display = 'block';
-                } else {
-                    parent.style.display = 'none';
-                }
-            });
-        });
-    </script>
-</body>
-</html>
+    <div class="intent-overview">
+        <div class="card">
+            <div class="card-header">
+                <h3>Intent Distribution</h3>
+            </div>
+            <div class="card-content">
+                <div class="intent-stats">
+                    <div class="intent-item">
+                        <span class="intent-label">Queries</span>
+                        <span class="intent-count"><%= analytics ? analytics.intents.query : 0 %></span>
+                    </div>
+                    <div class="intent-item">
+                        <span class="intent-label">Complaints</span>
+                        <span class="intent-count"><%= analytics ? analytics.intents.complaint : 0 %></span>
+                    </div>
+                    <div class="intent-item">
+                        <span class="intent-label">Action Required</span>
+                        <span class="intent-count"><%= analytics ? analytics.intents.need_action : 0 %></span>
+                    </div>
+                    <div class="intent-item">
+                        <span class="intent-label">Feedback</span>
+                        <span class="intent-count"><%= analytics ? analytics.intents.feedback : 0 %></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 3rem;
+}
+
+.stat-card {
+    background: var(--surface-color);
+    padding: 2rem;
+    border-radius: 16px;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+}
+
+.stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+}
+
+.stat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.stat-number {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.stat-label {
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.stat-detail {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+}
+
+.section-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.search-box {
+    position: relative;
+}
+
+.search-box input {
+    padding: 0.75rem 1rem 0.75rem 3rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--surface-color);
+    width: 300px;
+}
+
+.search-box i {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-secondary);
+}
+
+.analytics-section {
+    margin-bottom: 3rem;
+}
+
+.analytics-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.analytics-card {
+    background: var(--surface-color);
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.analytics-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    background: var(--primary-color);
+    color: white;
+}
+
+.analytics-icon.positive { background: var(--success-color); }
+.analytics-icon.warning { background: var(--warning-color); }
+.analytics-icon.negative { background: var(--error-color); }
+
+.analytics-details h3 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--text-primary);
+}
+
+.analytics-details p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.intent-overview {
+    max-width: 400px;
+}
+
+.intent-stats {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.intent-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    background: var(--background-color);
+    border-radius: 6px;
+}
+
+.intent-label {
+    font-weight: 500;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+
+.intent-count {
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+
+
+.empty-state {
+    text-align: center;
+    padding: 6rem 2rem;
+}
+
+.empty-state-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 20px;
+    background: linear-gradient(135deg, var(--primary-light), var(--primary-color));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 2rem;
+    box-shadow: var(--shadow-lg);
+}
+
+.empty-state-icon i {
+    font-size: 2rem;
+    color: white;
+}
+
+.empty-state h3 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+    color: var(--text-secondary);
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.sla-badge {
+    padding: 0.2rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: capitalize;
+}
+
+.sla-new { background: #e0f2fe; color: #0277bd; }
+.sla-pending { background: #fff3e0; color: #f57c00; }
+.sla-overdue { background: #ffebee; color: #d32f2f; }
+.sla-closed { background: #e8f5e8; color: #388e3c; }
+
+.sentiment-positive, .sentiment-neutral, .sentiment-negative {
+    padding: 0.2rem 0.4rem;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    margin: 0 0.2rem;
+}
+
+@media (max-width: 768px) {
+    .stats { grid-template-columns: 1fr; }
+    .search-box input { width: 100%; }
+    .chatroom-meta { grid-template-columns: 1fr; }
+}
+</style>
+
+<script>
+// Search functionality
+document.getElementById('searchInput')?.addEventListener('input', function(e) {
+    const searchTerm = e.target.value.toLowerCase();
+    const chatrooms = document.querySelectorAll('.chatroom');
+    
+    chatrooms.forEach(chatroom => {
+        const text = chatroom.textContent.toLowerCase();
+        const parent = chatroom.parentElement;
+        if (text.includes(searchTerm)) {
+            parent.style.display = 'block';
+        } else {
+            parent.style.display = 'none';
+        }
+    });
+});
+</script>
+
+<%- include('partials/layout-footer') %>

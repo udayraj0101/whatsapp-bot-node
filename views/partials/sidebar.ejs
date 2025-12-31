@@ -1,0 +1,58 @@
+<div class="sidebar">
+    <div class="sidebar-header">
+        <div class="logo">
+            <i class="fab fa-whatsapp"></i>
+            <div>
+                <h1>NxtQ</h1>
+                <span>Business CRM</span>
+            </div>
+        </div>
+    </div>
+
+    <nav class="sidebar-nav">
+        <a href="/" class="sidebar-nav-item <%= currentPage === 'dashboard' ? 'active' : '' %>">
+            <i class="fas fa-home"></i>
+            <span>Dashboard</span>
+        </a>
+        <a href="/conversations" class="sidebar-nav-item <%= currentPage === 'conversations' ? 'active' : '' %>">
+            <i class="fas fa-comments"></i>
+            <span>Conversations</span>
+        </a>
+        <a href="/agents" class="sidebar-nav-item <%= currentPage === 'agents' ? 'active' : '' %>">
+            <i class="fas fa-robot"></i>
+            <span>AI Agents</span>
+        </a>
+        <!-- <a href="/tags" class="sidebar-nav-item <%= currentPage === 'tags' ? 'active' : '' %>">
+            <i class="fas fa-tags"></i>
+            <span>Tags</span>
+        </a> -->
+        <a href="/sla" class="sidebar-nav-item <%= currentPage === 'sla' ? 'active' : '' %>">
+            <i class="fas fa-clock"></i>
+            <span>SLA Management</span>
+        </a>
+        <a href="/feedback" class="sidebar-nav-item <%= currentPage === 'feedback' ? 'active' : '' %>">
+            <i class="fas fa-star"></i>
+            <span>Feedback</span>
+        </a>
+        <a href="/billing" class="sidebar-nav-item <%= currentPage === 'billing' ? 'active' : '' %>">
+            <i class="fas fa-credit-card"></i>
+            <span>Billing</span>
+        </a>
+        <a href="/settings" class="sidebar-nav-item <%= currentPage === 'settings' ? 'active' : '' %>">
+            <i class="fas fa-cog"></i>
+            <span>Settings</span>
+        </a>
+    </nav>
+
+    <div class="sidebar-footer">
+        <div class="user-info">
+            <div class="user-avatar">
+                <i class="fas fa-user"></i>
+            </div>
+            <div class="user-details">
+                <div class="user-name">Admin User</div>
+                <div class="user-role">System Administrator</div>
+            </div>
+        </div>
+    </div>
+</div>

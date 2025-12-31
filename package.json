@@ -5,20 +5,31 @@
   "main": "whatsapp_bot.js",
   "scripts": {
     "start": "node whatsapp_bot.js",
-    "dev": "nodemon whatsapp_bot.js"
+    "dev": "nodemon whatsapp_bot.js",
+    "setup": "node setup_vendor.js",
+    "validate": "node validate_system.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
     "axios": "^1.6.0",
+    "bcryptjs": "^3.0.3",
     "dotenv": "^16.3.1",
-    "mongoose": "^8.0.0",
     "ejs": "^3.1.9",
-    "form-data": "^4.0.0"
+    "express": "^4.18.2",
+    "express-session": "^1.18.2",
+    "form-data": "^4.0.0",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^8.0.0",
+    "openai": "^6.15.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
   },
-  "keywords": ["whatsapp", "bot", "express", "nodejs"],
+  "keywords": [
+    "whatsapp",
+    "bot",
+    "express",
+    "nodejs"
+  ],
   "author": "Abhishek Wadhwa",
   "license": "MIT"
 }

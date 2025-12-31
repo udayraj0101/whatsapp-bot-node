@@ -1,0 +1,39 @@
+<div class="top-header">
+    <div class="header-left">
+        <button class="mobile-menu-btn" onclick="toggleSidebar()">
+            <i class="fas fa-bars"></i>
+        </button>
+        <div class="breadcrumb">
+            <% if (typeof breadcrumb !== 'undefined' && breadcrumb.length > 0) { %>
+                <% breadcrumb.forEach((item, index) => { %>
+                    <% if (index > 0) { %><i class="fas fa-chevron-right"></i><% } %>
+                    <% if (item.url) { %>
+                        <a href="<%= item.url %>"><%= item.name %></a>
+                    <% } else { %>
+                        <span><%= item.name %></span>
+                    <% } %>
+                <% }) %>
+            <% } %>
+        </div>
+    </div>
+    
+    <div class="header-right">
+        <div class="header-actions">
+            <button class="header-btn" title="Notifications">
+                <i class="fas fa-bell"></i>
+                <span class="badge">3</span>
+            </button>
+            <button class="header-btn" title="Search">
+                <i class="fas fa-search"></i>
+            </button>
+            <div class="user-menu">
+                <button class="user-menu-btn">
+                    <div class="user-avatar-small">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

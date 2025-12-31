@@ -1,0 +1,105 @@
+<%- include('partials/layout-header', { title: 'Feedback', currentPage: 'feedback' }) %>
+
+<div class="content-header">
+    <h1><i class="fas fa-star"></i> Customer Feedback</h1>
+    <p>Customer satisfaction and feedback management</p>
+</div>
+
+<div class="feedback-dashboard">
+    <div class="card">
+        <div class="card-header">
+            <h3>Feedback System</h3>
+        </div>
+        <div class="card-content">
+            <div class="coming-soon">
+                <i class="fas fa-star"></i>
+                <h3>Customer Feedback Management</h3>
+                <p>Advanced feedback collection, rating analytics, and satisfaction tracking coming in Phase 2</p>
+                <div class="features-list">
+                    <div class="feature-item">
+                        <i class="fas fa-check"></i>
+                        <span>Customer satisfaction surveys</span>
+                    </div>
+                    <div class="feature-item">
+                        <i class="fas fa-check"></i>
+                        <span>Rating analytics and trends</span>
+                    </div>
+                    <div class="feature-item">
+                        <i class="fas fa-check"></i>
+                        <span>Feedback categorization</span>
+                    </div>
+                    <div class="feature-item">
+                        <i class="fas fa-check"></i>
+                        <span>Performance insights</span>
+                    </div>
+                    <div class="feature-item">
+                        <i class="fas fa-check"></i>
+                        <span>Automated follow-ups</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.feedback-dashboard {
+    display: grid;
+    gap: 2rem;
+}
+
+.coming-soon {
+    text-align: center;
+    padding: 4rem 2rem;
+}
+
+.coming-soon i {
+    font-size: 4rem;
+    margin-bottom: 1.5rem;
+    color: var(--warning-color);
+}
+
+.coming-soon h3 {
+    font-size: 1.75rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+}
+
+.coming-soon p {
+    color: var(--text-secondary);
+    margin-bottom: 2rem;
+    font-size: 1.1rem;
+}
+
+.features-list {
+    display: grid;
+    gap: 1rem;
+    max-width: 500px;
+    margin: 0 auto;
+    text-align: left;
+}
+
+.feature-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    background: var(--background-color);
+    border-radius: 8px;
+    border-left: 4px solid var(--warning-color);
+}
+
+.feature-item i {
+    color: var(--success-color);
+    font-size: 1rem;
+}
+
+.feature-item span {
+    color: var(--text-primary);
+    font-weight: 500;
+    font-size: 0.95rem;
+}
+</style>
+
+<%- include('partials/layout-footer') %>

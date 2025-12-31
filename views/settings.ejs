@@ -1,0 +1,243 @@
+<%- include('partials/layout-header', { title: 'Settings', currentPage: 'settings' }) %>
+
+<div class="content-header">
+    <h1><i class="fas fa-cog"></i> System Settings</h1>
+    <p>Configure system preferences and integrations</p>
+</div>
+
+<div class="settings-dashboard">
+    <div class="settings-grid">
+        <div class="card">
+            <div class="card-header">
+                <h3>WhatsApp Configuration</h3>
+            </div>
+            <div class="card-content">
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <h4>Business Phone ID</h4>
+                        <p>WhatsApp Business API phone number</p>
+                    </div>
+                    <div class="setting-status">
+                        <span class="status-badge active">Connected</span>
+                    </div>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <h4>Webhook Status</h4>
+                        <p>Message webhook endpoint</p>
+                    </div>
+                    <div class="setting-status">
+                        <span class="status-badge active">Active</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h3>AI Services</h3>
+            </div>
+            <div class="card-content">
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <h4>OpenAI Integration</h4>
+                        <p>Intent detection and sentiment analysis</p>
+                    </div>
+                    <div class="setting-status">
+                        <span class="status-badge active">Enabled</span>
+                    </div>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <h4>Auto-Tagging</h4>
+                        <p>Automatic conversation tagging</p>
+                    </div>
+                    <div class="setting-status">
+                        <span class="status-badge active">Enabled</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h3>Database</h3>
+            </div>
+            <div class="card-content">
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <h4>MongoDB Connection</h4>
+                        <p>Primary database connection</p>
+                    </div>
+                    <div class="setting-status">
+                        <span class="status-badge active">Connected</span>
+                    </div>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <h4>Data Backup</h4>
+                        <p>Automated backup schedule</p>
+                    </div>
+                    <div class="setting-status">
+                        <span class="status-badge pending">Pending</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h3>System Information</h3>
+            </div>
+            <div class="card-content">
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">Version</span>
+                        <span class="info-value">1.0.0 MVP</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Environment</span>
+                        <span class="info-value">Development</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Uptime</span>
+                        <span class="info-value">Active</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Last Updated</span>
+                        <span class="info-value">Today</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3>Advanced Configuration</h3>
+        </div>
+        <div class="card-content">
+            <div class="coming-soon">
+                <i class="fas fa-tools"></i>
+                <h3>Advanced Settings Panel</h3>
+                <p>Detailed configuration options, user management, and system preferences coming in Phase 2</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.settings-dashboard {
+    display: grid;
+    gap: 2rem;
+}
+
+.settings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+.setting-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.setting-item:last-child {
+    border-bottom: none;
+}
+
+.setting-info h4 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 0.25rem 0;
+}
+
+.setting-info p {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.status-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-badge.active {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.status-badge.pending {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.status-badge.inactive {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.info-grid {
+    display: grid;
+    gap: 1rem;
+}
+
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: var(--background-color);
+    border-radius: 6px;
+}
+
+.info-label {
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.info-value {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.coming-soon {
+    text-align: center;
+    padding: 3rem 2rem;
+}
+
+.coming-soon i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    color: var(--primary-light);
+}
+
+.coming-soon h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.coming-soon p {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+}
+
+@media (max-width: 768px) {
+    .settings-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<%- include('partials/layout-footer') %>

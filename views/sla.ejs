@@ -1,0 +1,213 @@
+<%- include('partials/layout-header', { title: 'SLA Management', currentPage: 'sla' }) %>
+
+<div class="content-header">
+    <h1><i class="fas fa-clock"></i> SLA Management</h1>
+    <p>Service Level Agreement tracking and performance metrics</p>
+</div>
+
+<div class="sla-dashboard">
+    <div class="sla-stats">
+        <div class="card">
+            <div class="card-content">
+                <div class="stat-item">
+                    <div class="stat-icon">
+                        <i class="fas fa-plus-circle"></i>
+                    </div>
+                    <div class="stat-details">
+                        <h3><%= slaStats.new %></h3>
+                        <p>New Conversations</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-content">
+                <div class="stat-item">
+                    <div class="stat-icon warning">
+                        <i class="fas fa-hourglass-half"></i>
+                    </div>
+                    <div class="stat-details">
+                        <h3><%= slaStats.pending %></h3>
+                        <p>Pending Response</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-content">
+                <div class="stat-item">
+                    <div class="stat-icon negative">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="stat-details">
+                        <h3><%= slaStats.overdue %></h3>
+                        <p>Overdue (>24h)</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-content">
+                <div class="stat-item">
+                    <div class="stat-icon positive">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stat-details">
+                        <h3><%= slaStats.closed %></h3>
+                        <p>Closed</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="sla-metrics">
+        <div class="card">
+            <div class="card-header">
+                <h3>SLA Performance</h3>
+            </div>
+            <div class="card-content">
+                <div class="metrics-grid">
+                    <div class="metric-item">
+                        <div class="metric-value <%= slaStats.slaCompliance >= 90 ? 'positive' : slaStats.slaCompliance >= 70 ? 'warning' : 'negative' %>">
+                            <%= slaStats.slaCompliance %>%
+                        </div>
+                        <div class="metric-label">SLA Compliance</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-value">
+                            <%= slaStats.avgResponseTime %>h
+                        </div>
+                        <div class="metric-label">Avg Response Time</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-value">
+                            24h
+                        </div>
+                        <div class="metric-label">SLA Target</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-value">
+                            <%= slaStats.total %>
+                        </div>
+                        <div class="metric-label">Total Conversations</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.sla-dashboard {
+    display: grid;
+    gap: 2rem;
+}
+
+.sla-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+}
+
+.sla-content {
+    display: grid;
+    gap: 1.5rem;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.stat-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    background: var(--primary-color);
+    color: white;
+}
+
+.stat-icon.positive {
+    background: var(--success-color);
+}
+
+.stat-icon.warning {
+    background: var(--warning-color);
+}
+
+.stat-icon.negative {
+    background: var(--error-color);
+}
+
+.stat-details h3 {
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--text-primary);
+}
+
+.stat-details p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.sla-metrics {
+    margin-top: 2rem;
+}
+
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1.5rem;
+}
+
+.metric-item {
+    text-align: center;
+    padding: 1rem;
+    background: var(--background-color);
+    border-radius: 8px;
+}
+
+.metric-value {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+}
+
+.metric-value.positive {
+    color: var(--success-color);
+}
+
+.metric-value.warning {
+    color: var(--warning-color);
+}
+
+.metric-value.negative {
+    color: var(--error-color);
+}
+
+.metric-label {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+@media (max-width: 768px) {
+    .sla-stats {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<%- include('partials/layout-footer') %>
