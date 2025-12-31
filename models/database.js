@@ -23,10 +23,25 @@ const vendorSchema = new mongoose.Schema({
     subscription_status: { type: String, enum: ['active', 'cancelled', 'suspended'], default: 'active' },
     whatsapp_phone_id: { type: String, required: true },
     whatsapp_access_token: { type: String },
-    is_active: { type: Boolean, default: true }
+    is_active: { type: Boolean, default: true },
+    // System admin flag to control access to admin panel
+    is_system_admin: { type: Boolean, default: false }
 }, {
     timestamps: true
 });
+
+// Pricing Schema for vendor-specific costs
+const pricingSchema = new mongoose.Schema({
+    vendor_id: { type: String, required: true, unique: true },
+    text_cost: { type: Number, default: 0 },
+    audio_cost: { type: Number, default: 0 },
+    image_cost: { type: Number, default: 0 },
+    markup_percentage: { type: Number, default: 0 }
+}, {
+    timestamps: true
+});
+
+const Pricing = mongoose.model('Pricing', pricingSchema);
 
 // Hash password before saving
 vendorSchema.pre('save', async function(next) {
@@ -105,6 +120,9 @@ const Chatroom = mongoose.model('Chatroom', chatroomSchema);
 const Message = mongoose.model('Message', messageSchema);
 const AgentContext = mongoose.model('AgentContext', agentContextSchema);
 const BillingRecord = mongoose.model('BillingRecord', billingRecordSchema);
+
+// Export AdminUser model separately to avoid cyclic requires
+const AdminUser = require('./admin');
 
 // Create or get chatroom (Updated for multi-tenancy)
 async function createOrGetChatroom(vendorId, businessId, agentId, threadId, phoneNumber) {
@@ -218,6 +236,8 @@ module.exports = {
     Message,
     AgentContext,
     BillingRecord,
+    Pricing,
+    AdminUser,
     createOrGetChatroom,
     saveMessage,
     getChatroomMessages,

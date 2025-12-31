@@ -109,6 +109,17 @@ async function validateSystem() {
         console.log('\n5️⃣ AGENT CONTEXT VALIDATION');
         const agentContexts = await AgentContext.find({});
         console.log(`   🤖 Agent contexts: ${agentContexts.length}`);
+
+        // 6. Admin User Validation
+        console.log('\n6️⃣ ADMIN USER VALIDATION');
+        const AdminUser = require('./models/admin');
+        const admins = await AdminUser.find({});
+        console.log(`   👮 Admin users: ${admins.length}`);
+        if (admins.length > 0) {
+            admins.forEach(a => console.log(`      - ${a.email} (${a.role})`));
+        } else {
+            console.log('   ⚠️  No admin users found (consider running npm run setup)');
+        }
         
         for (const context of agentContexts) {
             console.log(`   📋 Agent: ${context.name} (Vendor: ${context.vendor_id})`);

@@ -1,0 +1,74 @@
+<%- include('./partials/layout-header', { title: 'Admin Dashboard', currentPage: 'admin' }) %>
+
+<div class="content-header">
+    <h1><i class="fas fa-chart-line"></i> Admin Dashboard</h1>
+    <p>System overview and key metrics</p>
+</div>
+
+<div class="card-grid">
+    <div class="card">
+        <div class="card-header">
+            <h3>Total Vendors</h3>
+            <div class="muted">All accounts</div>
+        </div>
+        <div class="card-content">
+            <div class="stat-number"><%= stats.totalVendors %></div>
+            <div class="stat-sub">Registered vendors</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3>Active Conversations</h3>
+            <div class="muted">Total chatrooms</div>
+        </div>
+        <div class="card-content">
+            <div class="stat-number"><%= stats.totalChatrooms %></div>
+            <div class="stat-sub">Open & closed</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3>Total Messages</h3>
+            <div class="muted">All vendors combined</div>
+        </div>
+        <div class="card-content">
+            <div class="stat-number"><%= stats.totalMessages %></div>
+            <div class="stat-sub">Text, audio, media</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3>Active Subscriptions</h3>
+            <div class="muted">Paid plans</div>
+        </div>
+        <div class="card-content">
+            <div class="stat-number"><%= stats.activeSubscriptions %></div>
+            <div class="stat-sub">Current</div>
+        </div>
+    </div>
+</div>
+
+<div class="card" style="margin-top:2rem;">
+    <div class="card-header">
+        <h3><i class="fas fa-bolt" style="color:var(--primary-color);"></i> Quick Actions</h3>
+        <div class="muted">Common admin tasks</div>
+    </div>
+    <div class="card-content">
+        <div class="btn-group">
+            <a href="/admin/vendors/create" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Create Vendor
+            </a>
+            <a href="/admin/vendors" class="btn">
+                <i class="fas fa-list"></i> Manage Vendors
+            </a>
+            <a href="/admin/pricing" class="btn">
+                <i class="fas fa-sliders-h"></i> Pricing Settings
+            </a>
+        </div>
+    </div>
+</div>
+
+<%- include('partials/layout-footer') %>

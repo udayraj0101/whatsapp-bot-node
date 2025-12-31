@@ -1,0 +1,127 @@
+<%- include('./partials/layout-header', { title: 'Pricing Settings', currentPage: 'admin' }) %>
+
+<div class="content-header">
+    <h1><i class="fas fa-credit-card"></i> Pricing Configuration</h1>
+    <p>Set system-wide rates for message processing</p>
+</div>
+
+<div class="pricing-layout">
+    <div class="pricing-form">
+        <div class="card-header">
+            <h3>Edit Rates</h3>
+            <div class="muted">Values in INR (₹)</div>
+        </div>
+        <div class="card-content">
+            <form method="POST" action="/admin/pricing" id="pricing-form">
+                <div class="form-group">
+                    <label>Text Message</label>
+                    <input id="text-cost" class="form-input" name="text_cost" type="number" step="0.01" value="<%= pricing.text_cost || 0 %>" />
+                </div>
+
+                <div class="form-group">
+                    <label>Audio Message</label>
+                    <input id="audio-cost" class="form-input" name="audio_cost" type="number" step="0.01" value="<%= pricing.audio_cost || 0 %>" />
+                </div>
+
+                <div class="form-group">
+                    <label>Image/Media</label>
+                    <input id="image-cost" class="form-input" name="image_cost" type="number" step="0.01" value="<%= pricing.image_cost || 0 %>" />
+                </div>
+
+                <div class="form-group">
+                    <label>Markup (%)</label>
+                    <input id="markup" class="form-input" name="markup_percentage" type="number" step="0.01" value="<%= pricing.markup_percentage || 0 %>" />
+                </div>
+
+                <div style="display:flex; gap:0.75rem; margin-top:1.5rem;">
+                    <button class="btn btn-primary" type="submit">
+                        <i class="fas fa-save"></i> Save Pricing
+                    </button>
+                    <button class="btn" type="button" id="reset-form">
+                        <i class="fas fa-undo"></i> Reset
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="pricing-preview">
+        <h3><i class="fas fa-calculator"></i> Cost Preview</h3>
+        <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1rem;">Enter quantities to see estimated costs</p>
+        
+        <div style="margin-bottom:1rem;">
+            <label style="font-size:0.9rem; color:var(--text-secondary); font-weight:600; display:block; margin-bottom:0.35rem;">Text Messages</label>
+            <input id="sample-text-count" class="form-input" type="number" value="100" style="font-size:0.9rem;" />
+        </div>
+
+        <div style="margin-bottom:1.5rem;">
+            <label style="font-size:0.9rem; color:var(--text-secondary); font-weight:600; display:block; margin-bottom:0.35rem;">Audio Clips</label>
+            <input id="sample-audio-count" class="form-input" type="number" value="5" style="font-size:0.9rem;" />
+        </div>
+
+        <div class="preview-row">
+            <span>Text</span>
+            <span id="text-total">₹0.00</span>
+        </div>
+        <div class="preview-row">
+            <span>Audio</span>
+            <span id="audio-total">₹0.00</span>
+        </div>
+        <div class="preview-row">
+            <span>Subtotal</span>
+            <span id="subtotal">₹0.00</span>
+        </div>
+        <div class="preview-row">
+            <span>Markup</span>
+            <span id="markup-total">₹0.00</span>
+        </div>
+        <div class="preview-row" style="color:var(--primary-color); font-size:1.15rem;">
+            <span>Total Cost</span>
+            <span id="sample-total">₹0.00</span>
+        </div>
+
+        <div style="margin-top:1rem; padding-top:1rem; border-top:1px solid rgba(30,64,175,0.2);">
+            <p style="font-size:0.8rem; color:var(--text-muted); line-height:1.4;">
+                <strong>Note:</strong> These are sample calculations. Actual costs depend on message volume and configuration.
+            </p>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function(){
+        const text = document.getElementById('text-cost');
+        const audio = document.getElementById('audio-cost');
+        const image = document.getElementById('image-cost');
+        const markup = document.getElementById('markup');
+        const sampleText = document.getElementById('sample-text-count');
+        const sampleAudio = document.getElementById('sample-audio-count');
+        const resetBtn = document.getElementById('reset-form');
+
+        function compute(){
+            const t = parseFloat(text.value) || 0;
+            const a = parseFloat(audio.value) || 0;
+            const m = parseFloat(markup.value) || 0;
+            const txtCount = parseInt(sampleText.value) || 0;
+            const audCount = parseInt(sampleAudio.value) || 0;
+
+            const textTotal = t * txtCount;
+            const audioTotal = a * audCount;
+            let subtotal = textTotal + audioTotal;
+            let markupAmt = subtotal * (m / 100);
+            let total = subtotal + markupAmt;
+
+            document.getElementById('text-total').innerText = '₹' + textTotal.toFixed(2);
+            document.getElementById('audio-total').innerText = '₹' + audioTotal.toFixed(2);
+            document.getElementById('subtotal').innerText = '₹' + subtotal.toFixed(2);
+            document.getElementById('markup-total').innerText = '₹' + markupAmt.toFixed(2);
+            document.getElementById('sample-total').innerText = '₹' + total.toFixed(2);
+        }
+
+        [text,audio,image,markup,sampleText,sampleAudio].forEach(el=>el.addEventListener('input', compute));
+        resetBtn.addEventListener('click', ()=>{ sampleText.value = 100; sampleAudio.value = 5; compute(); });
+        compute();
+    })();
+</script>
+
+<%- include('partials/layout-footer') %>

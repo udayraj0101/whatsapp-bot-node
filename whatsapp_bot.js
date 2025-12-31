@@ -5,14 +5,14 @@ const axios = require('axios');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const { connectDB, createOrGetChatroom, saveMessage, Chatroom, Message, AgentContext, getAgentContext, saveAgentContext, Vendor, generateVendorId } = require('./models/database');
+const { connectDB, createOrGetChatroom, saveMessage, Chatroom, Message, AgentContext, getAgentContext, saveAgentContext, Vendor, Pricing, generateVendorId } = require('./models/database');
 const { transcribeAudio } = require('./ai/stt');
 const { analyzeImage } = require('./ai/vision');
 const { detectIntent } = require('./ai/intent');
 const { analyzeSentiment } = require('./ai/sentiment');
 const { getSLAStats, updateConversationStatus, calculateSLAStatus } = require('./services/sla');
 const { autoTagFromIntent, getFixedTags } = require('./ai/tagging');
-const { generateToken, requireAuth, redirectIfAuthenticated } = require('./middleware/auth');
+const { generateToken, requireAuth, redirectIfAuthenticated, verifyToken, requireAdmin, generateAdminToken, redirectIfAdminAuthenticated } = require('./middleware/auth');
 
 const app = express();
 const API_BASE = process.env.API_BASE_URL || 'http://localhost:8000';
@@ -33,6 +33,40 @@ app.set('view engine', 'ejs');
 app.use('/uploads', express.static('uploads'));
 app.use('/css', express.static('public/css'));
 app.use('/js', express.static('public/js'));
+
+// Make the logged-in vendor available to EJS templates
+app.use(async (req, res, next) => {
+    try {
+        const token = req.session.token || req.headers.authorization?.replace('Bearer ', '');
+        if (token) {
+            const decoded = verifyToken(token);
+            const vendor = await Vendor.findOne({ vendor_id: decoded.vendorId, is_active: true });
+            if (vendor) res.locals.vendor = vendor;
+        }
+    } catch (e) {
+        // ignore vendor errors
+    }
+
+    // ensure admin is defined for all views
+    res.locals.admin = null;
+    try {
+        const adminToken = req.session?.adminToken || req.headers['admin-authorization']?.replace('Bearer ', '');
+        if (adminToken) {
+            const decodedAdmin = require('./middleware/auth').verifyAdminToken(adminToken);
+            const AdminUser = require('./models/admin');
+            const admin = await AdminUser.findById(decodedAdmin.adminId);
+            if (admin && admin.is_active) res.locals.admin = admin;
+        }
+    } catch (e) {
+        // ignore admin errors
+    }
+
+    // expose request and path for view logic (e.g., active sidebar item)
+    res.locals.request = req;
+    res.locals.requestPath = req.path;
+
+    next();
+});
 
 // Connect to MongoDB
 connectDB();
@@ -57,15 +91,15 @@ app.get('/login', redirectIfAuthenticated, (req, res) => {
 app.post('/login', redirectIfAuthenticated, async (req, res) => {
     try {
         const { email, password } = req.body;
-        
+
         const vendor = await Vendor.findOne({ email: email.toLowerCase(), is_active: true });
         if (!vendor || !(await vendor.comparePassword(password))) {
             return res.render('login', { error: 'Invalid email or password' });
         }
-        
+
         const token = generateToken(vendor.vendor_id);
         req.session.token = token;
-        
+
         res.redirect('/');
     } catch (error) {
         console.error('Login error:', error);
@@ -166,7 +200,7 @@ app.post('/webhook', async (req, res) => {
                         // Extract phone_number_id for vendor identification
                         const phoneNumberId = change.value.metadata?.phone_number_id;
                         const messages = change.value.messages;
-                        
+
                         if (messages && phoneNumberId) {
                             messages.forEach(message => {
                                 handleIncomingMessage(message, change.value, phoneNumberId);
@@ -196,17 +230,17 @@ async function handleIncomingMessage(message, value, phoneNumberId) {
     console.log(`[WEBHOOK] Input - From: ${from}, Type: ${messageType}, Phone ID: ${phoneNumberId}`);
 
     // VENDOR IDENTIFICATION - Critical for multi-vendor architecture
-    const vendor = await Vendor.findOne({ 
+    const vendor = await Vendor.findOne({
         whatsapp_phone_id: phoneNumberId,
         is_active: true
     });
-    
+
     if (!vendor) {
         console.log(`[VENDOR_NOT_FOUND] No vendor found for phone_number_id: ${phoneNumberId}. Message from ${from} ignored.`);
         console.log(`[ADMIN_REVIEW] Add vendor with whatsapp_phone_id: ${phoneNumberId} to handle messages`);
         return; // Defensive: Do not crash, just ignore
     }
-    
+
     console.log(`[VENDOR_FOUND] Message for vendor: ${vendor.company_name} (${vendor.vendor_id})`);
     console.log(`[MESSAGE_LIFECYCLE] RECEIVED - Vendor: ${vendor.vendor_id}, From: ${from}, Type: ${messageType}`);
 
@@ -221,7 +255,7 @@ async function handleIncomingMessage(message, value, phoneNumberId) {
             // Download media file
             const fileName = await downloadMedia(mediaData.id, messageType, from);
             mediaInfo = `[Media received: ${messageType}${fileName ? ` - ${fileName}` : ''}]`;
-            
+
             // Process media based on type
             if (messageType === 'audio' && fileName) {
                 // Transcribe audio to text
@@ -272,26 +306,26 @@ async function handleIncomingMessage(message, value, phoneNumberId) {
 
         const businessId = 1; // Use simple business_id for MVP
         const agentId = 1; // Always use agent_id 1 for default agent
-        
+
         // Create or get chatroom - VENDOR SCOPED
         const chatroom = await createOrGetChatroom(vendor.vendor_id, businessId, agentId, from, from);
         console.log(`[DATA_VALIDATION] Chatroom created/found with vendor_id: ${vendor.vendor_id}`);
-        
+
         // Save user message with AI intelligence - VENDOR SCOPED
         const mediaUrl = mediaInfo ? `uploads/${mediaInfo.split(' - ')[1]?.replace(']', '')}` : null;
         const userMessage = await saveMessageWithAI(vendor.vendor_id, chatroom._id, 'user', messageText, from, messageType !== 'text' ? messageType : null, mediaUrl, message.id);
-        
+
         // Get agent context from database (fresh fetch each time)
         console.log(`Fetching agent context for vendor: ${vendor.vendor_id}, business_id: ${businessId}, agent_id: ${agentId}`);
         const agentContextData = await getAgentContext(vendor.vendor_id, businessId, agentId);
-        
+
         if (agentContextData) {
             console.log(`Agent context found: ${agentContextData.name} (Updated: ${agentContextData.updatedAt})`);
             console.log(`Context preview: ${agentContextData.context.substring(0, 100)}...`);
         } else {
             console.log('No agent context found in database, using default context');
         }
-        
+
         const contextText = agentContextData ? agentContextData.context : `You are ${vendor.company_name} WhatsApp assistant. CRITICAL: Always respond in the SAME LANGUAGE the user is speaking.`;
 
         const agentRequest = {
@@ -315,7 +349,7 @@ async function handleIncomingMessage(message, value, phoneNumberId) {
         // Save bot response - VENDOR SCOPED
         await saveMessage(vendor.vendor_id, chatroom._id, 'bot', response.data.ai_response, from);
         console.log(`[DATA_VALIDATION] Bot response saved with vendor_id: ${vendor.vendor_id}`);
-        
+
         if (mediaInfo) {
             console.log(`Media processed: ${mediaInfo}`);
         }
@@ -329,15 +363,15 @@ async function handleIncomingMessage(message, value, phoneNumberId) {
 async function saveMessageWithAI(vendorId, chatroomId, messageType, content, phoneNumber, mediaType = null, mediaUrl = null, whatsappMessageId = null) {
     try {
         console.log(`[AI_PROCESSING] Starting AI analysis for vendor: ${vendorId}, message_type: ${messageType}`);
-        
+
         let intent = null;
         let sentiment = null;
         let tags = [];
-        
+
         // Only analyze user messages for intelligence
         if (messageType === 'user' && content && !content.includes('[Media received:')) {
             console.log(`[AI_PROCESSING] Analyzing user message: ${content.substring(0, 100)}...`);
-            
+
             // Run AI analysis in parallel for better performance
             const [detectedIntent, detectedSentiment] = await Promise.all([
                 detectIntent(content).catch(err => {
@@ -349,12 +383,12 @@ async function saveMessageWithAI(vendorId, chatroomId, messageType, content, pho
                     return null;
                 })
             ]);
-            
+
             intent = detectedIntent;
             sentiment = detectedSentiment;
-            
+
             console.log(`[AI_RESULTS] Intent: ${intent}, Sentiment: ${sentiment}`);
-            
+
             // Auto-tag based on intent
             if (intent) {
                 tags = await autoTagFromIntent(intent, content).catch(err => {
@@ -364,7 +398,7 @@ async function saveMessageWithAI(vendorId, chatroomId, messageType, content, pho
                 console.log(`[AI_TAGGING] Generated tags: ${tags.join(', ')}`);
             }
         }
-        
+
         const message = new Message({
             vendor_id: vendorId, // CRITICAL: Always vendor-scoped
             chatroom_id: chatroomId,
@@ -377,10 +411,10 @@ async function saveMessageWithAI(vendorId, chatroomId, messageType, content, pho
             intent: intent,
             sentiment: sentiment
         });
-        
+
         const savedMessage = await message.save();
         console.log(`[DATA_VALIDATION] Message saved with vendor_id: ${vendorId}, intent: ${intent}, sentiment: ${sentiment}`);
-        
+
         // Update chatroom with tags if any
         if (tags.length > 0) {
             const chatroom = await Chatroom.findById(chatroomId);
@@ -391,7 +425,7 @@ async function saveMessageWithAI(vendorId, chatroomId, messageType, content, pho
                 console.log(`[TAG_UPDATE] Chatroom tags updated: ${newTags.join(', ')}`);
             }
         }
-        
+
         return savedMessage;
     } catch (error) {
         console.error(`[AI_PROCESSING] Error saving message with AI for vendor ${vendorId}:`, error);
@@ -499,18 +533,18 @@ async function downloadMedia(mediaId, mediaType, from) {
 app.get('/', requireAuth, async (req, res) => {
     try {
         const chatrooms = await Chatroom.find({ vendor_id: req.vendorId }).sort({ updatedAt: -1 });
-        
+
         // Calculate AI Response Rate
         let totalUserMessages = 0;
         let totalBotResponses = 0;
-        
+
         // Get analytics data for dashboard
-        const messages = await Message.find({ 
+        const messages = await Message.find({
             vendor_id: req.vendorId,
-            message_type: 'user' 
+            message_type: 'user'
         });
         const analyzedMessages = messages.filter(m => m.intent || m.sentiment);
-        
+
         const analytics = {
             totalAnalyzed: analyzedMessages.length,
             sentiments: {
@@ -525,40 +559,40 @@ app.get('/', requireAuth, async (req, res) => {
                 feedback: analyzedMessages.filter(m => m.intent === 'feedback').length
             }
         };
-        
+
         // Get AI insights for each chatroom
         const chatroomsWithInsights = await Promise.all(chatrooms.map(async (chatroom) => {
-            const messages = await Message.find({ 
+            const messages = await Message.find({
                 vendor_id: req.vendorId,
-                chatroom_id: chatroom._id 
+                chatroom_id: chatroom._id
             }).sort({ createdAt: -1 }).limit(10);
-            
+
             const userMessages = messages.filter(m => m.message_type === 'user' && m.intent && m.sentiment);
             const botMessages = messages.filter(m => m.message_type === 'bot');
-            
+
             // Count for AI response rate calculation
             totalUserMessages += messages.filter(m => m.message_type === 'user').length;
             totalBotResponses += botMessages.length;
-            
+
             // Get latest intent and sentiment
             const latestIntent = userMessages.length > 0 ? userMessages[0].intent : null;
             const latestSentiment = userMessages.length > 0 ? userMessages[0].sentiment : null;
-            
+
             // Count sentiments
             const sentimentCounts = {
                 positive: userMessages.filter(m => m.sentiment === 'positive').length,
                 neutral: userMessages.filter(m => m.sentiment === 'neutral').length,
                 negative: userMessages.filter(m => m.sentiment === 'negative').length
             };
-            
+
             // Calculate SLA info
             const firstUserMessage = await Message.findOne({
                 chatroom_id: chatroom._id,
                 message_type: 'user'
             }).sort({ createdAt: 1 });
-            
+
             const slaInfo = calculateSLAStatus(chatroom, firstUserMessage);
-            
+
             return {
                 ...chatroom.toObject(),
                 latestIntent,
@@ -569,13 +603,13 @@ app.get('/', requireAuth, async (req, res) => {
                 slaInfo
             };
         }));
-        
+
         // Calculate AI Response Rate
-        const aiResponseRate = totalUserMessages > 0 ? 
+        const aiResponseRate = totalUserMessages > 0 ?
             Math.round((totalBotResponses / totalUserMessages) * 100) : 0;
-        
-        res.render('chatrooms', { 
-            chatrooms: chatroomsWithInsights, 
+
+        res.render('chatrooms', {
+            chatrooms: chatroomsWithInsights,
             analytics,
             currentPage: 'dashboard',
             aiResponseRate,
@@ -591,35 +625,35 @@ app.get('/', requireAuth, async (req, res) => {
 app.get('/conversations', requireAuth, async (req, res) => {
     try {
         const chatrooms = await Chatroom.find({ vendor_id: req.vendorId }).sort({ updatedAt: -1 });
-        
+
         // Get AI insights for each chatroom
         const chatroomsWithInsights = await Promise.all(chatrooms.map(async (chatroom) => {
-            const messages = await Message.find({ 
+            const messages = await Message.find({
                 vendor_id: req.vendorId,
-                chatroom_id: chatroom._id 
+                chatroom_id: chatroom._id
             }).sort({ createdAt: -1 }).limit(10);
-            
+
             const userMessages = messages.filter(m => m.message_type === 'user' && m.intent && m.sentiment);
-            
+
             // Get latest intent and sentiment
             const latestIntent = userMessages.length > 0 ? userMessages[0].intent : null;
             const latestSentiment = userMessages.length > 0 ? userMessages[0].sentiment : null;
-            
+
             // Count sentiments
             const sentimentCounts = {
                 positive: userMessages.filter(m => m.sentiment === 'positive').length,
                 neutral: userMessages.filter(m => m.sentiment === 'neutral').length,
                 negative: userMessages.filter(m => m.sentiment === 'negative').length
             };
-            
+
             // Calculate SLA info
             const firstUserMessage = await Message.findOne({
                 chatroom_id: chatroom._id,
                 message_type: 'user'
             }).sort({ createdAt: 1 });
-            
+
             const slaInfo = calculateSLAStatus(chatroom, firstUserMessage);
-            
+
             return {
                 ...chatroom.toObject(),
                 latestIntent,
@@ -630,9 +664,9 @@ app.get('/conversations', requireAuth, async (req, res) => {
                 slaInfo
             };
         }));
-        
-        res.render('conversations', { 
-            chatrooms: chatroomsWithInsights, 
+
+        res.render('conversations', {
+            chatrooms: chatroomsWithInsights,
             currentPage: 'conversations'
         });
     } catch (error) {
@@ -642,32 +676,32 @@ app.get('/conversations', requireAuth, async (req, res) => {
 
 app.get('/chatroom/:id', requireAuth, async (req, res) => {
     try {
-        const chatroom = await Chatroom.findOne({ 
-            _id: req.params.id, 
-            vendor_id: req.vendorId 
+        const chatroom = await Chatroom.findOne({
+            _id: req.params.id,
+            vendor_id: req.vendorId
         });
-        
+
         if (!chatroom) {
             return res.status(404).send('Chatroom not found');
         }
-        
-        const messages = await Message.find({ 
+
+        const messages = await Message.find({
             vendor_id: req.vendorId,
-            chatroom_id: req.params.id 
+            chatroom_id: req.params.id
         }).sort({ createdAt: 1 });
-        
+
         // Calculate AI insights for this conversation
         const userMessages = messages.filter(m => m.message_type === 'user');
         const aiAnalyzedMessages = userMessages.filter(m => m.intent || m.sentiment);
-        
+
         // Calculate SLA info
         const firstUserMessage = await Message.findOne({
             chatroom_id: req.params.id,
             message_type: 'user'
         }).sort({ createdAt: 1 });
-        
+
         const slaInfo = calculateSLAStatus(chatroom, firstUserMessage);
-        
+
         const insights = {
             totalMessages: messages.length,
             userMessages: userMessages.length,
@@ -685,7 +719,7 @@ app.get('/chatroom/:id', requireAuth, async (req, res) => {
             },
             slaInfo
         };
-        
+
         res.render('chatroom', { chatroom, messages, insights });
     } catch (error) {
         res.status(500).send('Error loading chatroom');
@@ -710,11 +744,11 @@ app.get('/crm', requireAuth, (req, res) => {
 app.get('/agents/edit/:businessId/:agentId', requireAuth, async (req, res) => {
     try {
         const agent = await getAgentContext(req.vendorId, parseInt(req.params.businessId), parseInt(req.params.agentId));
-        res.render('agent-edit', { 
-            agent, 
-            businessId: req.params.businessId, 
-            agentId: req.params.agentId, 
-            currentPage: 'agents' 
+        res.render('agent-edit', {
+            agent,
+            businessId: req.params.businessId,
+            agentId: req.params.agentId,
+            currentPage: 'agents'
         });
     } catch (error) {
         res.status(500).send('Error loading agent');
@@ -726,10 +760,10 @@ app.post('/agents/edit/:businessId/:agentId', requireAuth, async (req, res) => {
         const { name, context } = req.body;
         await saveAgentContext(
             req.vendorId,
-            parseInt(req.params.businessId), 
-            parseInt(req.params.agentId), 
-            name, 
-            context, 
+            parseInt(req.params.businessId),
+            parseInt(req.params.agentId),
+            name,
+            context,
             req.vendor.email
         );
         res.redirect('/agents');
@@ -750,12 +784,12 @@ app.post('/crm/agent/:businessId/:agentId', (req, res) => {
 // Analytics Route (Protected)
 app.get('/analytics', requireAuth, async (req, res) => {
     try {
-        const messages = await Message.find({ 
+        const messages = await Message.find({
             vendor_id: req.vendorId,
-            message_type: 'user' 
+            message_type: 'user'
         });
         const analyzedMessages = messages.filter(m => m.intent || m.sentiment);
-        
+
         const analytics = {
             totalAnalyzed: analyzedMessages.length,
             sentiments: {
@@ -770,7 +804,7 @@ app.get('/analytics', requireAuth, async (req, res) => {
                 feedback: analyzedMessages.filter(m => m.intent === 'feedback').length
             }
         };
-        
+
         res.render('analytics', { analytics, currentPage: 'analytics' });
     } catch (error) {
         res.status(500).send('Error loading analytics');
@@ -782,10 +816,10 @@ app.get('/tags', requireAuth, async (req, res) => {
     try {
         const chatrooms = await Chatroom.find({ vendor_id: req.vendorId }).populate('tags');
         const availableTags = getFixedTags();
-        res.render('tags', { 
-            chatrooms, 
-            availableTags, 
-            currentPage: 'tags' 
+        res.render('tags', {
+            chatrooms,
+            availableTags,
+            currentPage: 'tags'
         });
     } catch (error) {
         res.status(500).send('Error loading tags');
@@ -797,13 +831,13 @@ app.post('/api/chatroom/:id/tags', requireAuth, async (req, res) => {
     try {
         const { id } = req.params;
         const { tags } = req.body;
-        
+
         // Verify chatroom belongs to vendor
         const chatroom = await Chatroom.findOne({ _id: id, vendor_id: req.vendorId });
         if (!chatroom) {
             return res.status(404).json({ error: 'Chatroom not found' });
         }
-        
+
         await Chatroom.findByIdAndUpdate(id, { tags: tags });
         res.json({ success: true });
     } catch (error) {
@@ -828,12 +862,172 @@ app.post('/api/chatroom/:id/status', requireAuth, async (req, res) => {
     try {
         const { id } = req.params;
         const { status } = req.body;
-        
+
         const chatroom = await updateConversationStatus(id, status, req.vendorId);
         res.json({ success: true, chatroom });
     } catch (error) {
         console.error('Update status error:', error);
         res.status(500).json({ error: 'Failed to update status' });
+    }
+});
+
+// Admin login routes
+app.get('/admin/login', redirectIfAdminAuthenticated, (req, res) => {
+    res.render('admin/login', { error: null });
+});
+
+app.post('/admin/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        const AdminUser = require('./models/admin');
+        const admin = await AdminUser.findOne({ email: email.toLowerCase(), is_active: true });
+        if (!admin || !(await admin.comparePassword(password))) {
+            return res.render('admin/login', { error: 'Invalid email or password' });
+        }
+
+        const token = generateAdminToken(admin._id);
+        req.session.adminToken = token;
+        return res.redirect('/admin');
+    } catch (error) {
+        console.error('Admin login error:', error);
+        res.render('admin/login', { error: 'Login failed. Please try again.' });
+    }
+});
+
+app.get('/admin/logout', (req, res) => {
+    delete req.session.adminToken;
+    res.redirect('/admin/login');
+});
+
+// Admin Routes (Protected)
+
+// Admin Dashboard
+app.get('/admin', requireAdmin, async (req, res) => {
+    try {
+        const totalVendors = await Vendor.countDocuments({});
+        const totalChatrooms = await Chatroom.countDocuments({});
+        const totalMessages = await Message.countDocuments({});
+        const activeSubscriptions = await Vendor.countDocuments({ subscription_status: 'active' });
+
+        res.render('admin/dashboard', {
+            currentPage: 'admin',
+            stats: { totalVendors, totalChatrooms, totalMessages, activeSubscriptions }
+        });
+    } catch (error) {
+        console.error('Admin dashboard error:', error);
+        res.status(500).send('Error loading admin dashboard');
+    }
+});
+
+// Vendor List
+app.get('/admin/vendors', requireAdmin, async (req, res) => {
+    try {
+        const vendors = await Vendor.find({}).sort({ createdAt: -1 }).lean();
+        res.render('admin/vendors', { currentPage: 'admin', vendors });
+    } catch (error) {
+        console.error('Admin vendors list error:', error);
+        res.status(500).send('Error loading vendors');
+    }
+});
+
+// Vendor Create Form
+app.get('/admin/vendors/create', requireAdmin, (req, res) => {
+    res.render('admin/vendor-create', { currentPage: 'admin', error: null });
+});
+
+// Vendor Create Handler
+app.post('/admin/vendors/create', requireAdmin, async (req, res) => {
+    try {
+        const { company_name, email, phone, password, subscription_plan } = req.body;
+        const existing = await Vendor.findOne({ email: email.toLowerCase() });
+        if (existing) return res.render('admin/vendor-create', { currentPage: 'admin', error: 'Email already exists' });
+
+        const vendorId = generateVendorId();
+        const vendor = new Vendor({
+            vendor_id: vendorId,
+            email: email.toLowerCase(),
+            company_name,
+            phone,
+            password,
+            subscription_plan: subscription_plan || 'basic'
+        });
+
+        await vendor.save();
+
+        // Create default agent context for vendor
+        await saveAgentContext(
+            vendorId,
+            parseInt(vendorId.replace('VND', ''), 36),
+            1,
+            `${company_name} Support Agent`,
+            `You are ${company_name} WhatsApp assistant. CRITICAL: Always respond in the SAME LANGUAGE the user is speaking.`,
+            'admin'
+        );
+
+        res.redirect('/admin/vendors');
+    } catch (error) {
+        console.error('Admin create vendor error:', error);
+        res.render('admin/vendor-create', { currentPage: 'admin', error: 'Failed to create vendor' });
+    }
+});
+
+// Vendor Detail
+app.get('/admin/vendors/:vendorId', requireAdmin, async (req, res) => {
+    try {
+        const vendor = await Vendor.findOne({ vendor_id: req.params.vendorId }).lean();
+        if (!vendor) return res.status(404).send('Vendor not found');
+
+        const chatroomCount = await Chatroom.countDocuments({ vendor_id: vendor.vendor_id });
+        const messageCount = await Message.countDocuments({ vendor_id: vendor.vendor_id });
+        const pricing = await Pricing.findOne({ vendor_id: vendor.vendor_id }).lean() || {};
+
+        res.render('admin/vendor-detail', { currentPage: 'admin', vendor, chatroomCount, messageCount, pricing });
+    } catch (error) {
+        console.error('Admin vendor detail error:', error);
+        res.status(500).send('Error loading vendor');
+    }
+});
+
+// Toggle vendor active status
+app.post('/admin/vendors/:vendorId/toggle', requireAdmin, async (req, res) => {
+    try {
+        const vendor = await Vendor.findOne({ vendor_id: req.params.vendorId });
+        if (!vendor) return res.status(404).send('Vendor not found');
+        vendor.is_active = !vendor.is_active;
+        await vendor.save();
+        res.json({ success: true, is_active: vendor.is_active });
+    } catch (error) {
+        console.error('Admin vendor toggle error:', error);
+        res.status(500).json({ error: 'Failed to update vendor' });
+    }
+});
+
+// Pricing Settings (global)
+app.get('/admin/pricing', requireAdmin, async (req, res) => {
+    try {
+        let pricing = await Pricing.findOne({ vendor_id: 'SYSTEM' }).lean();
+        if (!pricing) {
+            pricing = { text_cost: 0, audio_cost: 0, image_cost: 0, markup_percentage: 0 };
+        }
+        res.render('admin/pricing', { currentPage: 'admin', pricing });
+    } catch (error) {
+        console.error('Admin pricing error:', error);
+        res.status(500).send('Error loading pricing');
+    }
+});
+
+app.post('/admin/pricing', requireAdmin, async (req, res) => {
+    try {
+        const { text_cost, audio_cost, image_cost, markup_percentage } = req.body;
+        await Pricing.findOneAndUpdate(
+            { vendor_id: 'SYSTEM' },
+            { text_cost, audio_cost, image_cost, markup_percentage },
+            { upsert: true }
+        );
+        res.redirect('/admin/pricing');
+    } catch (error) {
+        console.error('Admin pricing update error:', error);
+        res.status(500).send('Failed to update pricing');
     }
 });
 

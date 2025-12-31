@@ -1,0 +1,193 @@
+<%- include('./partials/layout-header', { title: 'Vendors', currentPage: 'admin' }) %>
+
+<div class="content-header">
+    <h1><i class="fas fa-building"></i> Vendor Management</h1>
+    <p>View, manage, and control vendor accounts</p>
+</div>
+
+<div class="filter-bar">
+    <div class="filter-bar-section" style="flex:1;">
+        <input id="vendor-search" class="form-input" placeholder="Search by company, email or vendor ID..." />
+    </div>
+    <div class="filter-bar-section">
+        <select id="vendor-filter" class="form-input">
+            <option value="all">All Status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+        </select>
+    </div>
+    <div class="filter-bar-section">
+        <select id="page-size" class="form-input">
+            <option value="10">10 per page</option>
+            <option value="25">25 per page</option>
+            <option value="50">50 per page</option>
+        </select>
+    </div>
+    <a href="/admin/vendors/create" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Create Vendor
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>Vendors (<span id="vendor-count"><%= vendors.length %></span>)</h3>
+        <div class="muted">Page <span id="current-page">1</span> of <span id="total-pages">1</span></div>
+    </div>
+    <div class="card-content">
+
+        <table class="table" id="vendor-table">
+            <thead>
+                <tr>
+                    <th data-col="0" class="sortable">Vendor ID</th>
+                    <th data-col="1" class="sortable">Company</th>
+                    <th data-col="2" class="sortable">Email</th>
+                    <th data-col="3" class="sortable">Plan</th>
+                    <th>Status</th>
+                    <th>Admin</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% vendors.forEach(v => { %>
+                    <tr data-id="<%= v.vendor_id %>">
+                        <td class="cell-id"><a href="/admin/vendors/<%= v.vendor_id %>"><%= v.vendor_id %></a></td>
+                        <td class="cell-company"><%= v.company_name %></td>
+                        <td class="cell-email"><%= v.email %></td>
+                        <td class="cell-plan"><span class="badge"><%= v.subscription_plan %></span></td>
+                        <td class="status-cell"><span class="badge <%= v.is_active ? 'status-active' : 'status-inactive' %>"><%= v.is_active ? 'Active' : 'Inactive' %></span></td>
+                        <td><%= v.is_system_admin ? '<span class="badge">Admin</span>' : '' %></td>
+                        <td>
+                            <a class="btn" href="/admin/vendors/<%= v.vendor_id %>">View</a>
+                            <button class="btn toggle-btn" data-id="<%= v.vendor_id %>"><%= v.is_active ? 'Suspend' : 'Activate' %></button>
+                        </td>
+                    </tr>
+                <% }) %>
+            </tbody>
+        </table>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:1.5rem; padding-top:1.5rem; border-top:1px solid var(--border-color);">
+            <div id="pagination"></div>
+            <div class="muted">Total: <span id="vendor-count"><%= vendors.length %></span> vendors</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function(){
+        const search = document.getElementById('vendor-search');
+        const filter = document.getElementById('vendor-filter');
+        const table = document.getElementById('vendor-table');
+        const tbody = table.tBodies[0];
+        const pageSizeSelect = document.getElementById('page-size');
+        const pagination = document.getElementById('pagination');
+        const vendorCount = document.getElementById('vendor-count');
+        const currentPageEl = document.getElementById('current-page');
+        const totalPagesEl = document.getElementById('total-pages');
+
+        let allRows = Array.from(tbody.rows).map(r => r.cloneNode(true));
+        let sortCol = null; let sortDir = 1; // 1 asc, -1 desc
+        let page = 1;
+
+        function textOf(row, colIndex){
+            const cell = row.cells[colIndex];
+            return cell ? cell.innerText.trim().toLowerCase() : '';
+        }
+
+        function applyAll(){
+            const q = search.value.trim().toLowerCase();
+            const status = filter.value;
+            let rows = allRows.filter(r => {
+                const t = r.innerText.toLowerCase();
+                if (q && !t.includes(q)) return false;
+                if (status === 'active' && !t.includes('active')) return false;
+                if (status === 'inactive' && !t.includes('inactive')) return false;
+                return true;
+            });
+
+            // sorting
+            if (sortCol !== null){
+                rows.sort((a,b)=>{
+                    const A = textOf(a, sortCol);
+                    const B = textOf(b, sortCol);
+                    if (A < B) return -1 * sortDir; if (A > B) return 1 * sortDir; return 0;
+                });
+            }
+
+            // pagination
+            const pageSize = parseInt(pageSizeSelect.value,10);
+            const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+            if (page > totalPages) page = totalPages;
+            const start = (page - 1) * pageSize;
+            const pageRows = rows.slice(start, start + pageSize);
+
+            // render
+            tbody.innerHTML = '';
+            pageRows.forEach(r => tbody.appendChild(r.cloneNode(true)));
+
+            vendorCount.innerText = rows.length;
+            currentPageEl.innerText = page;
+            totalPagesEl.innerText = totalPages;
+            renderPagination(totalPages);
+            attachToggleHandlers();
+        }
+
+        function renderPagination(total){
+            pagination.innerHTML = '';
+            const prev = document.createElement('button'); prev.className='btn'; prev.innerText='Prev'; prev.disabled = page===1; prev.addEventListener('click', ()=>{ page--; applyAll(); });
+            const next = document.createElement('button'); next.className='btn'; next.innerText='Next'; next.disabled = page===total; next.addEventListener('click', ()=>{ page++; applyAll(); });
+            pagination.appendChild(prev);
+
+            // show up to 5 page buttons
+            const start = Math.max(1, page - 2); const end = Math.min(total, start + 4);
+            for (let i = start; i <= end; i++){
+                const b = document.createElement('button'); b.className='btn'; b.innerText=i; if (i===page) b.disabled=true; b.addEventListener('click', ()=>{ page=i; applyAll(); }); pagination.appendChild(b);
+            }
+            pagination.appendChild(next);
+        }
+
+        // sorting headers
+        document.querySelectorAll('#vendor-table thead th.sortable').forEach(th => {
+            th.style.cursor = 'pointer';
+            th.addEventListener('click', ()=>{
+                const col = parseInt(th.dataset.col,10);
+                if (sortCol === col) sortDir *= -1; else { sortCol = col; sortDir = 1; }
+                applyAll();
+            });
+        });
+
+        // filters
+        [search,filter,pageSizeSelect].forEach(el=>el.addEventListener('input', ()=>{ page=1; applyAll(); }));
+
+        function attachToggleHandlers(){
+            document.querySelectorAll('.toggle-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const id = btn.dataset.id;
+                    const confirmMsg = btn.innerText.includes('Suspend') ? 'Suspend this vendor?' : 'Activate this vendor?';
+                    if (!confirm(confirmMsg)) return;
+                    btn.disabled = true;
+                    try {
+                        const res = await fetch(`/admin/vendors/${id}/toggle`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+                        const data = await res.json();
+                        if (data && data.success) {
+                            // refresh table by re-applying filters
+                            applyAll();
+                            alert('Vendor status updated');
+                        } else {
+                            alert('Failed to update vendor');
+                        }
+                    } catch (err) {
+                        console.error(err);
+                        alert('Error updating vendor');
+                    }
+                    btn.disabled = false;
+                });
+            });
+        }
+
+        // initial render
+        applyAll();
+
+    })();
+</script>
+
+<%- include('partials/layout-footer') %>

@@ -1,0 +1,38 @@
+<%- include('./partials/layout-header', { title: 'Vendor', currentPage: 'admin' }) %>
+
+<div class="content-header">
+    <h1><i class="fas fa-building"></i> <%= vendor.company_name %></h1>
+    <p>Vendor details and actions</p>
+    <div style="margin-top:10px;"><a class="btn" href="/admin/vendors">Back to vendors</a></div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>Info</h3>
+    </div>
+    <div class="card-content">
+        <p><strong>Email:</strong> <%= vendor.email %></p>
+        <p><strong>Phone:</strong> <%= vendor.phone || 'N/A' %></p>
+        <p><strong>Plan:</strong> <%= vendor.subscription_plan %></p>
+        <p><strong>Status:</strong> <%= vendor.is_active ? 'Active' : 'Inactive' %></p>
+        <p><strong>Is System Admin:</strong> <%= vendor.is_system_admin ? 'Yes' : 'No' %></p>
+
+        <h4>Usage</h4>
+        <p><strong>Chatrooms:</strong> <%= chatroomCount %></p>
+        <p><strong>Messages:</strong> <%= messageCount %></p>
+
+        <h4>Pricing</h4>
+        <p><strong>Text Cost:</strong> ₹<%= pricing.text_cost || 0 %></p>
+        <p><strong>Audio Cost:</strong> ₹<%= pricing.audio_cost || 0 %></p>
+        <p><strong>Image Cost:</strong> ₹<%= pricing.image_cost || 0 %></p>
+        <p><strong>Markup:</strong> <%= pricing.markup_percentage || 0 %>%</p>
+
+        <div style="margin-top:1rem;">
+            <form method="POST" action="/admin/vendors/<%= vendor.vendor_id %>/toggle">
+                <button class="btn" type="submit"><%= vendor.is_active ? 'Suspend' : 'Activate' %></button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<%- include('partials/layout-footer') %>

@@ -38,6 +38,12 @@
             <i class="fas fa-credit-card"></i>
             <span>Billing</span>
         </a>
+        <% if ((vendor && vendor.is_system_admin) || (typeof admin !== 'undefined' && admin)) { %>
+            <a href="/admin" class="sidebar-nav-item <%= currentPage === 'admin' ? 'active' : '' %>">
+                <i class="fas fa-tools"></i>
+                <span>Admin</span>
+            </a>
+        <% } %>
         <a href="/settings" class="sidebar-nav-item <%= currentPage === 'settings' ? 'active' : '' %>">
             <i class="fas fa-cog"></i>
             <span>Settings</span>
