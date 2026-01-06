@@ -2,7 +2,7 @@
 
 <div class="content-header">
     <h1><i class="fas fa-robot"></i> AI Agent Configuration</h1>
-    <p>Configure your WhatsApp AI agent context and behavior</p>
+    <p>Configure your <%= vendor.company_name %> WhatsApp AI agent context and behavior</p>
 </div>
 
 <% 
@@ -17,8 +17,8 @@ const defaultAgent = agents.find(agent => agent.agent_id === 1);
                 <i class="fas fa-robot"></i>
             </div>
             <h3>Agent not configured</h3>
-            <p>Your AI agent needs to be set up to handle customer conversations</p>
-            <a href="/agents/edit/<%= parseInt(agents[0]?.business_id || '1') %>/1" class="setup-btn">
+            <p>Your <%= vendor.company_name %> AI agent needs to be set up to handle customer conversations</p>
+            <a href="/agents/edit/1/1" class="setup-btn">
                 <i class="fas fa-cog"></i> Setup Agent
             </a>
         </div>
@@ -28,8 +28,8 @@ const defaultAgent = agents.find(agent => agent.agent_id === 1);
                 <div class="agent-info">
                     <div class="agent-name"><%= defaultAgent.name %></div>
                     <div class="agent-status">
-                        <i class="fas fa-<%= defaultAgent.is_active ? 'check-circle' : 'times-circle' %>"></i>
-                        <%= defaultAgent.is_active ? 'Active' : 'Inactive' %>
+                        <i class="fas fa-check-circle"></i>
+                        Active
                     </div>
                 </div>
                 <a href="/agents/edit/<%= defaultAgent.business_id %>/1" class="edit-btn">

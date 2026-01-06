@@ -1,356 +1,139 @@
 # WhatsApp Bot SaaS - MVP Development Tracker
 
-## 📊 PROJECT STATUS OVERVIEW
-
-**Current Status**: Stability & Validation Gate (85%) → SLA Development Ready  
-**Timeline**: 14-18 days MVP delivery  
-**Budget**: ₹27,000 MVP scope  
-**Last Updated**: December 15, 2024 - Stability Validation Complete
-
-### ✅ COMPLETED FOUNDATION (85% Done)
-
-#### 1. WhatsApp Business Integration ✅ COMPLETE
-- [x] **Status**: Production Ready & Validated
-- [x] Webhook verification and handling
-- [x] Multi-vendor phone_number_id routing
-- [x] Message processing (text, media, audio, video, documents)
-- [x] Message sending and read receipts
-- [x] Media download and storage
-- [x] Signature verification
-- [x] Defensive logging for unknown phone IDs
-- [x] **Implementation Note**: Vendor-first architecture implemented and validated
-
-#### 2. AI & Media Processing ✅ COMPLETE
-- [x] **Status**: Production Ready & Validated
-- [x] OpenAI Whisper integration for speech-to-text
-- [x] OpenAI Vision API for image analysis
-- [x] FastAPI agent integration for AI responses
-- [x] Multilingual support (English, Hindi, Hinglish)
-- [x] Context-aware responses with database integration
-- [x] **Implementation Note**: AI intelligence validated and visible in CRM
-
-#### 3. Database & Storage ✅ COMPLETE
-- [x] **Status**: Production Ready & Validated
-- [x] MongoDB integration with Mongoose
-- [x] Vendor-scoped chatroom management
-- [x] Vendor-scoped message storage with metadata
-- [x] Agent context management per vendor
-- [x] Media file storage system
-- [x] **Implementation Note**: All data properly vendor-scoped and validated
-
-#### 4. Professional UI ✅ COMPLETE
-- [x] **Status**: Production Ready & Validated
-- [x] Professional CRM-style dashboard
-- [x] Sidebar navigation with future features
-- [x] Conversation detail view with AI insights
-- [x] CRM interface for agent management
-- [x] Agent context editor
-- [x] Media display (images, audio, video, documents)
-- [x] **Implementation Note**: White/Deep Blue/Black theme implemented
-
-#### 5. Core Architecture ✅ COMPLETE
-- [x] **Status**: Production Ready & Validated
-- [x] Multi-vendor SaaS architecture
-- [x] Vendor identification via phone_number_id
-- [x] Express.js server setup
-- [x] Environment configuration
-- [x] Error handling and defensive logging
-- [x] File upload system
-- [x] EJS templating
-- [x] **Implementation Note**: Vendor-first architecture locked and validated
-
-#### 6. Stability & Validation Gate ✅ COMPLETE
-- [x] **Status**: Complete - System Validated
-- [x] End-to-end webhook validation
-- [x] Vendor-scoped data validation
-- [x] AI intelligence validation
-- [x] Tagging system validation
-- [x] Regression safety checks
-- [x] Enhanced logging implementation
-- [x] **Implementation Note**: All MVP assumptions locked, system stable
-
-### 🔒 LOCKED MVP ASSUMPTIONS (DO NOT CHANGE)
-
-#### Architecture Decisions - PERMANENT
-- [x] **Vendor Onboarding**: Manual only via setup_vendor.js
-- [x] **No Registration Page**: Login-only system for MVP
-- [x] **Vendor Routing**: metadata.phone_number_id is single source of truth
-- [x] **Data Scoping**: All chatrooms and messages MUST have vendor_id
-- [x] **Defensive Handling**: Unknown phone IDs logged, not crashed
-- [x] **Manual Setup**: No Meta automation or admin panels for MVP
-
-#### Validation Results ✅
-- [x] **Webhook Validation**: phone_number_id extraction working
-- [x] **Vendor Resolution**: Correct vendor identification confirmed
-- [x] **Data Scoping**: All records properly vendor-scoped
-- [x] **AI Intelligence**: Intent/sentiment stored and displayed
-- [x] **Tagging System**: Auto-tags and manual override working
-- [x] **Regression Safety**: Existing conversations load correctly
-- [x] **Media Processing**: Audio/image/video handling validated
-
-### 🎯 READY FOR NEXT PHASE
-
-**System Status**: ✅ STABLE AND VALIDATED  
-**Next Phase**: Admin Panel + Billing Implementation  
-**Confidence Level**: HIGH - All foundations tested
-
-### 🔄 PENDING MVP FEATURES
-
-#### 1. Basic Admin Panel ✅ COMPLETE
-- [x] **Status**: Complete
-- [x] System overview dashboard
-- [x] Vendor list and basic management
-- [x] System-wide statistics
-- [x] **Implementation Note**: Minimal admin features implemented for MVP (admin auth, vendor creation, pricing settings)
-
-#### 2. Billing Logic (Calculation Only) 🔄 PENDING (Days 13-14)
-- [ ] **Status**: Pending
-- [ ] Text / Audio / Image cost tracking
-- [ ] Case-based pricing (new_user_4h, new_user_20h, existing_user)
-- [ ] Markup percentage from database
-- [ ] Cost visibility per conversation
-- [ ] **Implementation Note**: No payment gateway, tracking only
-
-#### 5. Enhanced Admin Dashboard 🔄 IN PROGRESS
-- [x] **Status**: 60% Complete (UI + AI Data Integration)
-- [x] AI insights display (intent and sentiment badges)
-- [x] Real-time intelligence data in conversation views
-- [ ] Status, tags, sentiment filters
-- [ ] SLA indicator display
-- [ ] Cost visibility integration
-- [x] **Implementation Note**: AI intelligence now visible in CRM dashboard and conversation details
-
-### 🚫 PHASE 2 - FUTURE ENHANCEMENTS (Post-MVP)
-
-**Explicitly Out of Scope for MVP:**
-
-#### Advanced Features (Phase 2)
-- Quality scoring systems
-- Advanced analytics & charts
-- Productivity dashboards
-- Rating analytics & feedback system
-- Performance optimization (caching, Redis)
-- Payment gateway or invoicing
-- Multi-agent role management
-- A/B testing framework
-- Advanced reporting & exports
-- Team management features
-
-**Note**: These features are valuable but not required for MVP delivery and ₹27,000 budget.
-
-### 🔧 VALIDATION COMMANDS
-
-```bash
-# Setup initial vendor (run once)
-npm run setup
-
-# Validate system stability
-npm run validate
-
-# Start application
-npm start
-
-# Development mode
-npm run dev
-```
-
-### 📋 VALIDATION CHECKLIST ✅
-
-- [x] **Phone Number Mapping**: WhatsApp phone ID correctly mapped to vendor
-- [x] **Vendor Scoping**: All chatrooms have vendor_id
-- [x] **Message Scoping**: All messages have vendor_id
-- [x] **AI Intelligence**: Intent and sentiment analysis working
-- [x] **Tagging System**: Auto-tags and manual override functional
-- [x] **Media Processing**: Audio, image, video handling validated
-- [x] **Defensive Logging**: Unknown phone IDs handled gracefully
-- [x] **Regression Safety**: Existing data loads without issues
-
-## 🚀 MVP DEVELOPMENT ROADMAP (14-18 Days)
-
-### PHASE 1: Database Schema & AI Intelligence (Days 1-5)
-**Goal**: Foundation for intelligence features
-
-#### Day 1-2: Database Schema Updates
-- [x] **Task**: Update Message schema (sentiment, intent, summary)
-- [x] **Task**: Update Chatroom schema (status, tags, sla_deadline)
-- [x] **Task**: Create BillingRecord schema
-- [ ] **Task**: Test schema changes (Day 2)
-- [x] **Deliverable**: Enhanced database schemas
-- [x] **Implementation Note**: All MVP fields added as optional, backward compatible
-
-#### Day 3-5: AI Intelligence Services
-- [x] **Task**: Create `ai/intent.js` - Intent detection service
-- [x] **Task**: Create `ai/sentiment.js` - Sentiment analysis service
-- [x] **Task**: Create `ai/summary.js` - Conversation summarization
-- [x] **Task**: Integrate AI services with message processing
-- [x] **Task**: Update CRM dashboard to display AI insights
-- [x] **Deliverable**: Working AI intelligence pipeline
-- [x] **Implementation Note**: OpenAI-based classification integrated with message processing and CRM display
-
-### PHASE 2: Smart Tagging & SLA Management (Days 6-10)
-**Goal**: Core operational features
-
-#### Day 6-7: Smart Tagging System ✅ COMPLETE
-- [x] **Task**: Implement auto-tagging logic based on intent ✅ COMPLETE
-- [x] **Task**: Create fixed tag set for MVP ✅ COMPLETE
-- [x] **Task**: Add manual tagging UI to CRM dashboard ✅ COMPLETE
-- [x] **Task**: Update conversation views to display tags ✅ COMPLETE
-- [x] **Deliverable**: Functional tagging system ✅ COMPLETE
-- [x] **CRM Integration**: Tag management interface, tag filters, bulk tagging ✅ COMPLETE
-- [x] **Implementation Note**: Auto-tagging with OpenAI + manual override system active
-
-#### Day 8-10: SLA Management ✅ COMPLETE
-- [x] **Task**: Implement 24-hour SLA calculations ✅ COMPLETE
-- [x] **Task**: Add status workflow (New/Pending/Overdue/Closed) ✅ COMPLETE
-- [x] **Task**: Create overdue detection and highlighting ✅ COMPLETE
-- [x] **Task**: Add status filters to CRM dashboard ✅ COMPLETE
-- [x] **Task**: SLA deadline display in conversation views ✅ COMPLETE
-- [x] **Deliverable**: Complete SLA management system ✅ COMPLETE
-- [x] **CRM Integration**: Status badges, overdue alerts, SLA timeline view ✅ COMPLETE
-- [x] **Implementation Note**: Real-time SLA tracking with compliance metrics active
-
-### PHASE 3: Admin Panel & Billing Logic (Days 11-14)
-**Goal**: System management and cost tracking
-
-#### Day 11-12: Basic Admin Panel ✅ COMPLETE
-- [x] **Task**: Create admin authentication system
-- [x] **Task**: Build system overview dashboard
-- [x] **Task**: Implement vendor list with basic stats
-- [x] **Task**: Add system-wide analytics
-- [x] **Deliverable**: Functional admin panel
-- [x] **Admin Features**: Vendor management, system stats, basic configuration
-#### Day 13-14: Billing Logic
-- [ ] **Task**: Implement cost calculation per interaction type
-- [ ] **Task**: Add case-based pricing logic
-- [ ] **Task**: Create pricing configuration in database
-- [ ] **Task**: Add cost tracking to message processing
-- [ ] **Task**: Display cost data in CRM conversation views
-- [ ] **Deliverable**: Working billing calculation system
-- [ ] **CRM Integration**: Cost per conversation, pricing breakdown, usage analytics
-
-### PHASE 4: Dashboard Enhancement & Testing (Days 15-18)
-**Goal**: Complete MVP and production readiness
-
-#### Day 15-16: Dashboard Enhancement
-- [x] **Task**: Integrate AI insights display ✅ COMPLETE
-- [x] **Task**: Add sentiment and intent indicators ✅ COMPLETE
-- [ ] **Task**: Implement advanced filtering (status, tags, sentiment)
-- [ ] **Task**: Add cost visibility per conversation
-- [ ] **Task**: Create CRM analytics summary cards
-- [ ] **Task**: Add conversation search and sorting
-- [ ] **Deliverable**: Complete MVP dashboard
-- [ ] **CRM Integration**: Advanced filters, search, analytics dashboard, export features
-
-#### Day 17-18: Final Testing & Polish
-- [ ] **Task**: UI/UX refinements
-- [ ] **Task**: Documentation updates
-- [ ] **Task**: Deployment preparation
-- [ ] **Task**: Client demo preparation
-- [ ] **Deliverable**: Production-ready MVP
-
-## 📋 CURRENT DEVELOPMENT PRIORITIES
-
-### 🔥 IMMEDIATE NEXT STEPS (This Week)
-
-#### Priority 1: Billing Logic (Days 13-14) 🔄 NEXT
-1. **Cost Calculation** - Per message type pricing
-2. **Usage Tracking** - Store costs in database
-3. **CRM Integration** - Show costs in conversations
-4. **Pricing Config** - Admin-configurable rates
-
-#### Priority 2: Additional Admin Enhancements (completed)
-1. **Admin Authentication** - Complete
-2. **System Overview** - Complete
-3. **Vendor Management** - Complete
-4. **System Stats** - Complete
-
-## 🎯 CRM INTEGRATION REQUIREMENTS
-
-### Current CRM Features ✅ IMPLEMENTED
-- **AI Intelligence Display**: Intent and sentiment badges in dashboard and conversation views
-- **Real-time Data**: Live AI analysis results visible immediately
-- **Professional UI**: Clean, modern CRM interface with sidebar navigation
-- **Conversation Management**: Detailed message history with AI insights
-
-### Pending CRM Features 🔄 NEXT PHASES
-
-#### Basic Admin Panel (Days 11-12)
-- **Admin Authentication**: Simple login system for admin access
-- **System Dashboard**: Total vendors, messages, conversations, revenue
-- **Vendor List**: All vendors with basic stats (active/inactive, message count)
-- **System Configuration**: Basic pricing rates and system settings
-- **Minimal UI**: Simple table-based interface, no complex features
-
-#### Billing Integration (Days 13-14)
-- **Cost Per Conversation**: Display total cost in conversation view
-- **Pricing Breakdown**: Show text/audio/image costs separately
-- **Usage Analytics**: Monthly/weekly cost summaries
-- **Billing Dashboard**: Revenue tracking and cost analysis
-- **Export Reports**: CSV/PDF billing reports
-
-#### Advanced Dashboard (Days 13-14)
-- **Multi-filter Search**: Combine status, tags, sentiment, date filters
-- **Conversation Sorting**: Sort by date, cost, sentiment, SLA status
-- **Analytics Cards**: Summary statistics with trends
-- **Bulk Actions**: Mass status updates, tagging, exports
-- **Performance Metrics**: Response times, resolution rates, satisfaction scores
-
-### CRM User Workflows
-
-#### Daily Operations
-1. **Dashboard Overview**: See all conversations with AI insights
-2. **Priority Management**: Filter overdue and negative sentiment conversations
-3. **Tag Management**: Organize conversations by topic/department
-4. **Status Tracking**: Monitor conversation lifecycle
-5. **Cost Monitoring**: Track usage and billing per conversation
-
-#### Weekly Management
-1. **Performance Review**: SLA compliance and response metrics
-2. **Sentiment Analysis**: Customer satisfaction trends
-3. **Cost Analysis**: Billing summaries and usage patterns
-4. **Tag Analytics**: Popular topics and conversation categories
-5. **Export Reports**: Data for management and billing
-
-## 📊 MVP SUCCESS METRICS
-
-### Phase 1 Success (Days 1-5)
-- [x] Database schemas updated and tested
-- [x] AI intelligence services functional
-- [x] Intent and sentiment detection working
-- [x] Message processing integration complete
-
-### Phase 2 Success (Days 6-10)
-- [x] Smart tagging system operational ✅ COMPLETE
-- [x] SLA management implemented ✅ COMPLETE
-- [x] Status workflow active ✅ COMPLETE
-- [x] Dashboard filtering functional ✅ COMPLETE
-
-### Phase 3 Success (Days 11-14)
-- [ ] Billing logic implemented
-- [ ] Cost tracking active
-- [ ] Enhanced dashboard complete
-- [ ] All MVP features integrated
-
-### Phase 4 Success (Days 15-18)
-- [ ] End-to-end testing complete
-- [ ] Performance optimized
-- [ ] UI polished
-- [ ] MVP ready for client demo
-
-## 🎯 DELIVERY TARGETS
-
-**MVP Delivery**: Day 14-18  
-**Client Demo**: Day 18  
-**Budget**: ₹27,000 (on track)  
-**Scope**: Core intelligence + operational features  
-
-## 📝 PROGRESS TRACKING
-
-**Development Status**: Day 10 Complete - SLA Management System Active  
-**Next Milestone**: Billing Logic Implementation (Days 11-12)  
-**Risk Level**: Low (SLA system integrated successfully)  
-**Client Updates**: Weekly progress reports with demo-ready features
-
----
-
-*This document serves as the single source of truth for MVP development progress and will be updated after each milestone completion.*
+## 🎯 **CURRENT PHASE: AI Billing System Implementation**
+
+### ✅ **COMPLETED FEATURES**
+
+#### **Phase 1: Authentication & Multi-Tenancy** ✅
+- [x] Vendor registration with bcrypt password hashing
+- [x] JWT-based login with 7-day sessions  
+- [x] Protected routes with middleware
+- [x] Multi-tenant architecture with vendor_id isolation
+- [x] Default agent creation during registration
+
+#### **Phase 2: WhatsApp Integration** ✅
+- [x] Webhook verification and message handling
+- [x] Multi-media support (text, image, audio, video, documents)
+- [x] Speech-to-text transcription with OpenAI Whisper
+- [x] Image analysis with OpenAI Vision
+- [x] Vendor-specific message routing
+
+#### **Phase 3: AI Intelligence** ✅
+- [x] Intent detection (query, complaint, need_action, feedback)
+- [x] Sentiment analysis (positive, neutral, negative)
+- [x] Auto-tagging based on conversation content
+- [x] Conversation insights and analytics
+
+#### **Phase 4: UI & Navigation** ✅
+- [x] Shared sidebar and header partials
+- [x] Consistent styling across all pages
+- [x] Dashboard with conversation insights
+- [x] Single-agent management UI
+- [x] Analytics, tags, SLA, billing pages structure
+
+#### **Phase 5: AI Billing System** ✅ **COMPLETED**
+- [x] **Step 1**: Removed old billing logic
+- [x] **Step 2A**: Token usage collection from all AI services
+  - Sentiment Analysis: Returns token usage (124 prompt + 1 completion = $0.000019)
+  - Intent Detection: Returns token usage (142 prompt + 2 completion = $0.000022)
+  - Vision Analysis: Returns token usage (~37K tokens = ~$0.022)
+  - Speech-to-Text: Returns duration in seconds ($0.006/minute)
+  - Agent/Process API: Returns token usage (500 prompt + 150 completion = $0.000165)
+- [x] **Step 2B**: New billing database schemas
+  - ConversationWindow: Tracks user interaction windows (4h/20h/24h+)
+  - PricingConfig: Vendor-specific markup settings (50%/30%/20%)
+  - VendorWallet: USD balance stored in cents for precision
+  - UsageRecord: Detailed billing records per message
+- [x] **Step 2C**: BillingEngine class
+  - Conversation window detection logic
+  - Time-based markup calculation (50%/30%/20%)
+  - Wallet management and charging
+- [x] **Step 3**: Integration with message processing ✅ **COMPLETED**
+  - Updated webhook handler to collect AI usage data
+  - Integrated billing engine into message flow
+  - Added error handling for insufficient balance
+  - Complete end-to-end billing working
+- [x] **Step 4**: Billing management panel ✅ **COMPLETED**
+  - Created comprehensive billings.ejs with wallet overview, pricing configuration, and usage analytics
+  - Implemented pricing configuration interface with markup percentages (50%/30%/20%)
+  - Added wallet management with balance display and add balance functionality
+  - Built usage records table with detailed service breakdown and cost analysis
+  - Added base AI service costs information panel
+  - Implemented modal for adding balance with validation
+  - Created responsive design with proper styling and notifications
+- [x] **Step 5**: Admin wallet top-up system ✅ **COMPLETED**
+  - Implemented INR input with real-time USD conversion display
+  - Added ExchangeRate schema for storing USD/INR conversion rates (default: 1 USD = ₹83)
+  - Created WalletTransaction schema for tracking all wallet operations
+  - Updated wallet display to show both USD and INR amounts
+  - Added transaction history modal with detailed transaction records
+  - Implemented admin-managed top-up without payment gateway integration
+  - All amounts stored in micro-dollars for precision, displayed in INR for user convenience
+
+### 🏆 **CURRENT WORK: Phase 6 - SLA Management System**
+
+**Objective**: Implement comprehensive SLA management with automatic status updates and notifications
+
+**Tasks**:
+1. Automatic ticket status updates (new → pending → overdue → closed)
+2. Response time tracking and SLA breach detection
+3. Escalation rules and notifications
+4. SLA performance analytics and reporting
+
+### 📋 **NEXT PHASES**
+
+#### **Phase 6: SLA Management System** (Days 8-10)
+- [ ] Automatic ticket status updates (new → pending → overdue → closed)
+- [ ] Response time tracking
+- [ ] SLA breach notifications
+- [ ] Escalation rules
+
+#### **Phase 7: Enhanced Dashboard** (Days 11-12)
+- [ ] Real-time conversation metrics
+- [ ] Billing analytics and usage reports
+- [ ] Performance monitoring
+- [ ] Vendor wallet balance display
+
+#### **Phase 8: Admin Panel** (Days 13-14)
+- [ ] Pricing management interface
+- [ ] Vendor wallet management
+- [ ] Usage analytics and reports
+- [ ] System configuration
+
+#### **Phase 9: Production Readiness** (Days 15-16)
+- [ ] Phone number to vendor mapping
+- [ ] Webhook security implementation
+- [ ] Error handling and logging
+- [ ] Deployment configuration
+
+### 💰 **Billing System Architecture**
+
+**Conversation Windows**:
+- **New user (4h)**: 50% markup
+- **Existing user (20h)**: 30% markup  
+- **Existing user (24h+)**: 20% markup
+
+**AI Services Pricing**:
+- Text services: $0.00015/1K input + $0.0006/1K output tokens
+- Vision: Same as text but higher token usage (~37K tokens/image)
+- STT: $0.006/minute
+
+**Example Cost per Message**:
+- Base cost: ~$0.000116
+- With 50% markup (new user): $0.000174
+- With 30% markup (existing): $0.000151
+- With 20% markup (24h+): $0.000139
+
+### 🎯 **SUCCESS METRICS**
+- [x] Multi-vendor authentication system
+- [x] AI-powered conversation intelligence
+- [x] Token-based billing system foundation
+- [ ] Complete billing integration
+- [ ] Admin billing management
+- [ ] Production-ready deployment
+
+### 📊 **TECHNICAL DEBT**
+- [ ] Phone number to vendor mapping (currently uses first active vendor)
+- [ ] Exchange rate management (USD/INR conversion)
+- [ ] Payment gateway integration for wallet top-up
+- [ ] Comprehensive error handling and logging

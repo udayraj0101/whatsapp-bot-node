@@ -1,0 +1,428 @@
+<%- include('./partials/layout-header', { title: 'Pricing Configuration', currentPage: 'admin' }) %>
+
+<div class="content-header">
+    <h1><i class="fas fa-dollar-sign"></i> Pricing Configuration</h1>
+    <p>Configure conversation rates, exchange rates, and AI service pricing</p>
+</div>
+
+<div class="pricing-grid">
+    <!-- Exchange Rate Configuration -->
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-exchange-alt"></i> Exchange Rate</h3>
+            <div class="muted">Last updated: <%= exchangeRate?.updated_at ? new Date(exchangeRate.updated_at).toLocaleString() : 'Never' %></div>
+        </div>
+        <div class="card-content">
+            <form id="exchangeRateForm">
+                <div class="form-group">
+                    <label for="usdToInr">1 USD = ? INR</label>
+                    <input type="number" id="usdToInr" class="form-input" 
+                           value="<%= exchangeRate?.rate || 83 %>" 
+                           min="1" step="0.01" required>
+                    <div class="form-help">Current market rate for USD to INR conversion</div>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Update Exchange Rate
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Global AI Service Pricing -->
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-robot"></i> AI Service Pricing (Global)</h3>
+            <div class="muted">Base costs for all vendors (USD per 1000 tokens)</div>
+        </div>
+        <div class="card-content">
+            <form id="globalPricingForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="gpt4InputPrice">GPT-4 Mini Input</label>
+                        <input type="number" id="gpt4InputPrice" class="form-input" 
+                               value="<%= globalPricing?.gpt4_mini_input_price || 0.00015 %>" 
+                               min="0" step="0.000001" required>
+                        <div class="form-help">Per 1000 input tokens</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="gpt4OutputPrice">GPT-4 Mini Output</label>
+                        <input type="number" id="gpt4OutputPrice" class="form-input" 
+                               value="<%= globalPricing?.gpt4_mini_output_price || 0.0006 %>" 
+                               min="0" step="0.000001" required>
+                        <div class="form-help">Per 1000 output tokens</div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="whisperPrice">Whisper STT</label>
+                    <input type="number" id="whisperPrice" class="form-input" 
+                           value="<%= globalPricing?.whisper_price_per_minute || 0.006 %>" 
+                           min="0" step="0.000001" required>
+                    <div class="form-help">Per minute of audio</div>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Update Global Pricing
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Conversation Window Markup -->
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-clock"></i> Conversation Window Markup</h3>
+            <div class="muted">Default markup percentages for new vendors</div>
+        </div>
+        <div class="card-content">
+            <form id="markupForm">
+                <div class="markup-item">
+                    <div class="markup-info">
+                        <h4>New User (First 4 Hours)</h4>
+                        <p>Premium rate for new customer interactions</p>
+                    </div>
+                    <div class="markup-input">
+                        <input type="number" id="newUser4h" class="form-input" 
+                               value="<%= defaultMarkup?.new_user_4h_markup || 50 %>" 
+                               min="0" max="500" step="1" required>
+                        <span class="input-suffix">%</span>
+                    </div>
+                </div>
+
+                <div class="markup-item">
+                    <div class="markup-info">
+                        <h4>Existing User (4-24 Hours)</h4>
+                        <p>Standard rate for ongoing conversations</p>
+                    </div>
+                    <div class="markup-input">
+                        <input type="number" id="existingUser20h" class="form-input" 
+                               value="<%= defaultMarkup?.existing_user_20h_markup || 30 %>" 
+                               min="0" max="500" step="1" required>
+                        <span class="input-suffix">%</span>
+                    </div>
+                </div>
+
+                <div class="markup-item">
+                    <div class="markup-info">
+                        <h4>Long-term User (24+ Hours)</h4>
+                        <p>Discounted rate for established customers</p>
+                    </div>
+                    <div class="markup-input">
+                        <input type="number" id="existingUser24h" class="form-input" 
+                               value="<%= defaultMarkup?.existing_user_24h_markup || 20 %>" 
+                               min="0" max="500" step="1" required>
+                        <span class="input-suffix">%</span>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Update Default Markup
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Pricing Calculator -->
+<div class="card">
+    <div class="card-header">
+        <h3><i class="fas fa-calculator"></i> Pricing Calculator</h3>
+        <div class="muted">Estimate costs for different scenarios</div>
+    </div>
+    <div class="card-content">
+        <div class="calculator-grid">
+            <div class="calc-inputs">
+                <div class="form-group">
+                    <label>Conversation Window</label>
+                    <select id="calcWindow" class="form-input">
+                        <option value="new_user_4h">New User (4h)</option>
+                        <option value="existing_user_20h">Existing User (20h)</option>
+                        <option value="existing_user_24h">Long-term User (24h+)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Input Tokens</label>
+                    <input type="number" id="calcInputTokens" class="form-input" value="100" min="0">
+                </div>
+                <div class="form-group">
+                    <label>Output Tokens</label>
+                    <input type="number" id="calcOutputTokens" class="form-input" value="50" min="0">
+                </div>
+            </div>
+            <div class="calc-results">
+                <div class="result-item">
+                    <span class="result-label">Base Cost:</span>
+                    <span class="result-value" id="calcBaseCost">$0.000000</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">Markup:</span>
+                    <span class="result-value" id="calcMarkup">$0.000000</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">Final Cost:</span>
+                    <span class="result-value" id="calcFinalCost">$0.000000</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">Cost (INR):</span>
+                    <span class="result-value" id="calcFinalCostInr">₹0.00</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.markup-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.markup-info h4 {
+    margin: 0 0 0.25rem 0;
+    color: var(--text-primary);
+}
+
+.markup-info p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.markup-input {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.markup-input .form-input {
+    width: 80px;
+    text-align: center;
+}
+
+.input-suffix {
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.vendor-pricing-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.vendor-info h4 {
+    margin: 0 0 0.25rem 0;
+}
+
+.vendor-info p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.pricing-values {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.pricing-tag {
+    padding: 0.25rem 0.5rem;
+    background: var(--primary-light);
+    color: var(--primary-dark);
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.calculator-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+}
+
+.calc-results {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.result-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: var(--background-color);
+    border-radius: 8px;
+}
+
+.result-label {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.result-value {
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.empty-state {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-secondary);
+}
+
+@media (max-width: 768px) {
+    .pricing-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .calculator-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .markup-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+}
+</style>
+
+<script>
+// Form submissions
+document.getElementById('exchangeRateForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const rate = document.getElementById('usdToInr').value;
+    
+    try {
+        const response = await fetch('/admin/pricing/exchange-rate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rate: parseFloat(rate) })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            alert('Exchange rate updated successfully');
+            location.reload();
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        alert('Failed to update exchange rate');
+    }
+});
+
+document.getElementById('globalPricingForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const pricing = {
+        gpt4_mini_input_price: parseFloat(document.getElementById('gpt4InputPrice').value),
+        gpt4_mini_output_price: parseFloat(document.getElementById('gpt4OutputPrice').value),
+        whisper_price_per_minute: parseFloat(document.getElementById('whisperPrice').value)
+    };
+    
+    try {
+        const response = await fetch('/admin/pricing/global', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(pricing)
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            alert('Global pricing updated successfully');
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        alert('Failed to update global pricing');
+    }
+});
+
+document.getElementById('markupForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const markup = {
+        new_user_4h_markup: parseInt(document.getElementById('newUser4h').value),
+        existing_user_20h_markup: parseInt(document.getElementById('existingUser20h').value),
+        existing_user_24h_markup: parseInt(document.getElementById('existingUser24h').value)
+    };
+    
+    try {
+        const response = await fetch('/admin/pricing/default-markup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(markup)
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            alert('Default markup updated successfully');
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        alert('Failed to update default markup');
+    }
+});
+
+// Pricing calculator
+function updateCalculator() {
+    const window = document.getElementById('calcWindow').value;
+    const inputTokens = parseInt(document.getElementById('calcInputTokens').value) || 0;
+    const outputTokens = parseInt(document.getElementById('calcOutputTokens').value) || 0;
+    
+    const inputPrice = <%= globalPricing?.gpt4_mini_input_price || 0.00015 %>;
+    const outputPrice = <%= globalPricing?.gpt4_mini_output_price || 0.0006 %>;
+    const exchangeRate = <%= exchangeRate?.rate || 83 %>;
+    
+    const baseCost = (inputTokens / 1000 * inputPrice) + (outputTokens / 1000 * outputPrice);
+    
+    let markupPercent;
+    switch (window) {
+        case 'new_user_4h': markupPercent = <%= defaultMarkup?.new_user_4h_markup || 50 %>; break;
+        case 'existing_user_20h': markupPercent = <%= defaultMarkup?.existing_user_20h_markup || 30 %>; break;
+        case 'existing_user_24h': markupPercent = <%= defaultMarkup?.existing_user_24h_markup || 20 %>; break;
+    }
+    
+    const markupAmount = baseCost * (markupPercent / 100);
+    const finalCost = baseCost + markupAmount;
+    const finalCostInr = finalCost * exchangeRate;
+    
+    document.getElementById('calcBaseCost').textContent = '$' + baseCost.toFixed(6);
+    document.getElementById('calcMarkup').textContent = '$' + markupAmount.toFixed(6);
+    document.getElementById('calcFinalCost').textContent = '$' + finalCost.toFixed(6);
+    document.getElementById('calcFinalCostInr').textContent = '₹' + finalCostInr.toFixed(4);
+}
+
+// Update calculator on input change
+['calcWindow', 'calcInputTokens', 'calcOutputTokens'].forEach(id => {
+    document.getElementById(id).addEventListener('input', updateCalculator);
+});
+
+// Initial calculation
+updateCalculator();
+</script>
+
+<%- include('partials/layout-footer') %>

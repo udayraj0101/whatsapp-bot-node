@@ -12,6 +12,7 @@ async function setupInitialVendor() {
         if (existingVendor) {
             console.log('Vendor already exists:', existingVendor.company_name);
             console.log('Vendor ID:', existingVendor.vendor_id);
+            console.log('Wallet balance (paise):', existingVendor.wallet_balance_paise || 0);
 
             // Ensure AdminUser exists even if vendor already exists
             const AdminUser = require('./models/admin');
@@ -45,7 +46,9 @@ async function setupInitialVendor() {
             subscription_status: 'active',
             whatsapp_phone_id: process.env.WHATSAPP_PHONE_ID,
             whatsapp_access_token: process.env.WHATSAPP_ACCESS_TOKEN,
-            is_active: true
+            is_active: true,
+            // Seed a small wallet balance for testing (paise)
+            wallet_balance_paise: 10000
         });
 
         await vendor.save();

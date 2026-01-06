@@ -35,19 +35,21 @@ Respond with only one word: query, complaint, need_action, or feedback`;
         });
 
         const intent = response.data.choices[0].message.content.trim().toLowerCase();
+        const tokenUsage = response.data.usage; // Extract token usage
         
         // Validate response
         const validIntents = ['query', 'complaint', 'need_action', 'feedback'];
         if (validIntents.includes(intent)) {
             console.log(`Intent detected: ${intent} for message: ${messageContent.substring(0, 50)}...`);
-            return intent;
+            console.log(`Token usage:`, tokenUsage);
+            return { intent, tokenUsage };
         } else {
             console.log(`Invalid intent response: ${intent}, defaulting to query`);
-            return 'query';
+            return { intent: 'query', tokenUsage };
         }
     } catch (error) {
         console.error('Intent detection error:', error.message);
-        return 'query'; // Default fallback
+        return { intent: 'query', tokenUsage: null }; // Default fallback
     }
 }
 

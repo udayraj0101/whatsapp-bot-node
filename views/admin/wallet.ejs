@@ -1,0 +1,316 @@
+<%- include('./partials/layout-header', { title: 'Wallet Management', currentPage: 'admin' }) %>
+
+<div class="content-header">
+    <h1><i class="fas fa-wallet"></i> Wallet Management</h1>
+    <p>Manage vendor wallet balances and top-ups</p>
+</div>
+
+<div class="filter-bar">
+    <div class="filter-bar-section" style="flex:1;">
+        <input id="vendor-search" class="form-input" placeholder="Search vendors..." />
+    </div>
+    <div class="filter-bar-section">
+        <select id="balance-filter" class="form-input">
+            <option value="all">All Balances</option>
+            <option value="low">Low Balance (< $1)</option>
+            <option value="zero">Zero Balance</option>
+        </select>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>Vendor Wallets</h3>
+        <div class="muted">Exchange Rate: 1 USD = ₹<span id="exchange-rate"><%= exchangeRate || 83 %></span></div>
+    </div>
+    <div class="card-content">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Vendor</th>
+                    <th>Company</th>
+                    <th>Balance (USD)</th>
+                    <th>Balance (INR)</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% vendors.forEach(vendor => { %>
+                    <tr data-vendor="<%= vendor.vendor_id %>">
+                        <td><%= vendor.vendor_id %></td>
+                        <td><%= vendor.company_name %></td>
+                        <td class="balance-usd">$<%= ((vendor.wallet?.balance_usd_micro || 0) / 1000000).toFixed(6) %></td>
+                        <td class="balance-inr">₹<%= (((vendor.wallet?.balance_usd_micro || 0) / 1000000) * (exchangeRate || 83)).toFixed(2) %></td>
+                        <td>
+                            <% const balanceUsd = (vendor.wallet?.balance_usd_micro || 0) / 1000000; %>
+                            <% if (balanceUsd === 0) { %>
+                                <span class="badge status-error">Empty</span>
+                            <% } else if (balanceUsd < 1) { %>
+                                <span class="badge status-warning">Low</span>
+                            <% } else { %>
+                                <span class="badge status-success">Good</span>
+                            <% } %>
+                        </td>
+                        <td>
+                            <button class="btn btn-primary topup-btn" data-vendor="<%= vendor.vendor_id %>" data-company="<%= vendor.company_name %>">
+                                <i class="fas fa-plus"></i> Top Up
+                            </button>
+                        </td>
+                    </tr>
+                <% }) %>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Top-up Modal -->
+<div id="topupModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Top Up Wallet</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="topupForm">
+                <div class="form-group">
+                    <label>Vendor:</label>
+                    <div id="selectedVendor" class="form-display"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="amountInr">Amount (INR):</label>
+                    <input type="number" id="amountInr" class="form-input" placeholder="Enter amount in INR" min="1" step="0.01" required>
+                    <div class="form-help">Equivalent: $<span id="amountUsd">0.00</span> USD</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="description">Description:</label>
+                    <input type="text" id="description" class="form-input" placeholder="e.g., Monthly top-up, Initial balance" required>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" id="cancelTopup">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="confirmTopup">Add Balance</button>
+        </div>
+    </div>
+</div>
+
+<style>
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background: var(--surface-color);
+    border-radius: 12px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: var(--shadow-lg);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--text-secondary);
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+.modal-footer {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+    padding: 1.5rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.form-input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--background-color);
+}
+
+.form-display {
+    padding: 0.75rem;
+    background: var(--background-color);
+    border-radius: 8px;
+    font-weight: 500;
+}
+
+.form-help {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-top: 0.25rem;
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.status-success { 
+    background: #dcfce7; 
+    color: #166534; 
+}
+
+.status-warning { 
+    background: #fef3c7; 
+    color: #92400e; 
+}
+
+.status-error { 
+    background: #fecaca; 
+    color: #dc2626; 
+}
+</style>
+
+<script>
+const exchangeRate = <%= exchangeRate || 83 %>;
+let selectedVendorId = null;
+
+// Modal handling
+const modal = document.getElementById('topupModal');
+const selectedVendorEl = document.getElementById('selectedVendor');
+const amountInrInput = document.getElementById('amountInr');
+const amountUsdSpan = document.getElementById('amountUsd');
+
+// Top-up button handlers
+document.querySelectorAll('.topup-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        selectedVendorId = btn.dataset.vendor;
+        selectedVendorEl.textContent = `${btn.dataset.company} (${selectedVendorId})`;
+        modal.style.display = 'flex';
+    });
+});
+
+// Close modal
+document.querySelector('.modal-close').addEventListener('click', () => {
+    modal.style.display = 'none';
+});
+
+document.getElementById('cancelTopup').addEventListener('click', () => {
+    modal.style.display = 'none';
+});
+
+// Convert INR to USD
+amountInrInput.addEventListener('input', () => {
+    const inrAmount = parseFloat(amountInrInput.value) || 0;
+    const usdAmount = inrAmount / exchangeRate;
+    amountUsdSpan.textContent = usdAmount.toFixed(6);
+});
+
+// Submit top-up
+document.getElementById('confirmTopup').addEventListener('click', async () => {
+    const amountInr = parseFloat(amountInrInput.value);
+    const description = document.getElementById('description').value;
+    
+    if (!amountInr || amountInr <= 0) {
+        alert('Please enter a valid amount');
+        return;
+    }
+    
+    if (!description.trim()) {
+        alert('Please enter a description');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/admin/wallet/topup', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                vendor_id: selectedVendorId,
+                amount_inr: amountInr,
+                description: description.trim()
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(`Successfully added ₹${amountInr} to wallet`);
+            location.reload(); // Refresh to show updated balance
+        } else {
+            alert(`Error: ${result.error}`);
+        }
+    } catch (error) {
+        console.error('Top-up error:', error);
+        alert('Failed to process top-up');
+    }
+});
+
+// Search and filter functionality
+document.getElementById('vendor-search').addEventListener('input', filterTable);
+document.getElementById('balance-filter').addEventListener('change', filterTable);
+
+function filterTable() {
+    const searchTerm = document.getElementById('vendor-search').value.toLowerCase();
+    const balanceFilter = document.getElementById('balance-filter').value;
+    const rows = document.querySelectorAll('tbody tr');
+    
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        const balanceUsd = parseFloat(row.querySelector('.balance-usd').textContent.replace('$', ''));
+        
+        let showRow = true;
+        
+        // Search filter
+        if (searchTerm && !text.includes(searchTerm)) {
+            showRow = false;
+        }
+        
+        // Balance filter
+        if (balanceFilter === 'low' && balanceUsd >= 1) {
+            showRow = false;
+        } else if (balanceFilter === 'zero' && balanceUsd > 0) {
+            showRow = false;
+        }
+        
+        row.style.display = showRow ? '' : 'none';
+    });
+}
+</script>
+
+<%- include('partials/layout-footer') %>

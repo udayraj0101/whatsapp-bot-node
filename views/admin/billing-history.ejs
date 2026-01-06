@@ -1,0 +1,182 @@
+<%- include('./partials/layout-header', { title: 'Billing History', currentPage: 'admin' }) %>
+
+<div class="content-header">
+    <h1><i class="fas fa-receipt"></i> Billing History</h1>
+    <p>All vendor usage charges and billing records</p>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>Recent Billing</h3>
+        <div class="muted">Latest usage charges across all vendors</div>
+    </div>
+    <div class="card-content">
+        <% if (billings.length > 0) { %>
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Vendor</th>
+                            <th>Phone Number</th>
+                            <th>Services Used</th>
+                            <th>Base Cost (USD)</th>
+                            <th>Final Cost (USD)</th>
+                            <th>Window Type</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% billings.forEach(billing => { %>
+                            <tr>
+                                <td><%= new Date(billing.charged_at).toLocaleDateString() %></td>
+                                <td>
+                                    <div class="vendor-info">
+                                        <strong><%= billing.vendor?.company_name || 'Unknown' %></strong>
+                                        <div class="muted"><%= billing.vendor_id %></div>
+                                    </div>
+                                </td>
+                                <td><%= billing.phone_number %></td>
+                                <td>
+                                    <div class="services-list">
+                                        <% billing.services_used.forEach(service => { %>
+                                            <span class="service-tag"><%= service.service_type %></span>
+                                        <% }) %>
+                                    </div>
+                                </td>
+                                <td class="amount">$<%= billing.base_cost_usd_micro ? (billing.base_cost_usd_micro / 1000000).toFixed(6) : '0.000000' %></td>
+                                <td class="amount final">$<%= billing.final_cost_usd_micro ? (billing.final_cost_usd_micro / 1000000).toFixed(6) : '0.000000' %></td>
+                                <td>
+                                    <span class="window-type <%= billing.conversation_window_type || 'unknown' %>">
+                                        <%= (billing.conversation_window_type || 'unknown').replace('_', ' ') %>
+                                    </span>
+                                </td>
+                            </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+            </div>
+        <% } else { %>
+            <div class="empty-state">
+                <i class="fas fa-receipt"></i>
+                <h3>No Billing Records Found</h3>
+                <p>No usage charges have been recorded yet.</p>
+            </div>
+        <% } %>
+    </div>
+</div>
+
+<style>
+.table-responsive {
+    overflow-x: auto;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+.data-table th,
+.data-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.data-table th {
+    background: var(--background-color);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.vendor-info strong {
+    display: block;
+    color: var(--text-primary);
+}
+
+.vendor-info .muted {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.services-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+}
+
+.service-tag {
+    background: var(--primary-light);
+    color: var(--primary-color);
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.amount {
+    font-weight: 600;
+    color: var(--warning-color);
+}
+
+.amount.final {
+    color: var(--error-color);
+}
+
+.window-type {
+    padding: 0.3rem 0.6rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    text-transform: capitalize;
+}
+
+.window-type.new_user_4h {
+    background: var(--success-light);
+    color: var(--success-color);
+}
+
+.window-type.existing_user_20h {
+    background: var(--warning-light);
+    color: var(--warning-color);
+}
+
+.window-type.existing_user_24h {
+    background: var(--error-light);
+    color: var(--error-color);
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: var(--text-muted);
+}
+
+.empty-state i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    color: var(--primary-light);
+}
+
+.empty-state h3 {
+    margin: 0 0 0.5rem 0;
+    color: var(--text-secondary);
+}
+
+@media (max-width: 768px) {
+    .data-table {
+        font-size: 0.9rem;
+    }
+    
+    .data-table th,
+    .data-table td {
+        padding: 0.5rem;
+    }
+    
+    .services-list {
+        flex-direction: column;
+    }
+}
+</style>
+
+<%- include('partials/layout-footer') %>

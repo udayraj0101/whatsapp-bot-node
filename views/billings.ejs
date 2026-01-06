@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Billing Management - WhatsApp Bot SaaS</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="/css/crm-new.css">
+</head>
+<body>
+    <%- include('partials/sidebar') %>
+    
+    <div class="main-content">
+        <div class="header">
+            <h1>Billing Management</h1>
+            <p>Configure pricing, manage wallet, and monitor usage</p>
+        </div>
+
+        <!-- Wallet Overview -->
+        <div class="billing-overview">
+            <div class="wallet-card">
+                <div class="wallet-header">
+                    <h2>Wallet Balance</h2>
+                    <div class="balance-display">
+                        <div class="balance-usd">$<%= (wallet.balance_usd_micro / 1000000).toFixed(6) %></div>
+                        <div class="balance-inr">₹<%= ((wallet.balance_usd_micro / 1000000) * exchangeRate.rate).toFixed(2) %></div>
+                        <small>Exchange Rate: 1 USD = ₹<%= exchangeRate.rate %></small>
+                    </div>
+                </div>
+                <div class="wallet-actions">
+                    <button class="btn-primary" onclick="showAddBalanceModal()">Add Balance (INR)</button>
+                    <button class="btn-secondary" onclick="showTransactionHistory()">Transaction History</button>
+                </div>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value"><%= analytics.totalMessages %></div>
+                    <div class="stat-label">Total Messages</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">$<%= (analytics.totalSpent / 1000000).toFixed(6) %></div>
+                    <div class="stat-label">Total Spent</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">$<%= analytics.avgCostPerMessage %></div>
+                    <div class="stat-label">Avg Cost/Message</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value"><%= analytics.activeConversations %></div>
+                    <div class="stat-label">Active Conversations</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pricing Configuration -->
+        <div class="card">
+            <div class="card-header">
+                <h2>Pricing Configuration</h2>
+                <p>Configure markup percentages for different conversation windows</p>
+            </div>
+            <form id="pricingForm" class="pricing-form">
+                <div class="pricing-grid">
+                    <div class="pricing-item">
+                        <label>New User (4h Window)</label>
+                        <div class="input-group">
+                            <input type="number" id="newUserMarkup" value="<%= pricing.new_user_4h_markup %>" min="0" max="200">
+                            <span class="input-suffix">%</span>
+                        </div>
+                        <small>Applied to first-time users within 4 hours</small>
+                    </div>
+                    <div class="pricing-item">
+                        <label>Existing User (20h Window)</label>
+                        <div class="input-group">
+                            <input type="number" id="existingUser20hMarkup" value="<%= pricing.existing_user_20h_markup %>" min="0" max="200">
+                            <span class="input-suffix">%</span>
+                        </div>
+                        <small>Applied to existing users within 20 hours</small>
+                    </div>
+                    <div class="pricing-item">
+                        <label>Existing User (24h+ Window)</label>
+                        <div class="input-group">
+                            <input type="number" id="existingUser24hMarkup" value="<%= pricing.existing_user_24h_markup %>" min="0" max="200">
+                            <span class="input-suffix">%</span>
+                        </div>
+                        <small>Applied to existing users after 24 hours</small>
+                    </div>
+                </div>
+                <button type="submit" class="btn-primary">Update Pricing</button>
+            </form>
+        </div>
+
+        <!-- Base Costs Information -->
+        <div class="card">
+            <div class="card-header">
+                <h2>Base AI Service Costs</h2>
+                <p>Current base costs for AI services (before markup)</p>
+            </div>
+            <div class="cost-grid">
+                <div class="cost-item">
+                    <div class="cost-service">Sentiment Analysis</div>
+                    <div class="cost-value">~$0.000019</div>
+                    <div class="cost-desc">Per message analysis</div>
+                </div>
+                <div class="cost-item">
+                    <div class="cost-service">Intent Detection</div>
+                    <div class="cost-value">~$0.000022</div>
+                    <div class="cost-desc">Per message analysis</div>
+                </div>
+                <div class="cost-item">
+                    <div class="cost-service">Agent Processing</div>
+                    <div class="cost-value">~$0.000165</div>
+                    <div class="cost-desc">Per response generation</div>
+                </div>
+                <div class="cost-item">
+                    <div class="cost-service">Vision Analysis</div>
+                    <div class="cost-value">~$0.022</div>
+                    <div class="cost-desc">Per image analysis</div>
+                </div>
+                <div class="cost-item">
+                    <div class="cost-service">Speech-to-Text</div>
+                    <div class="cost-value">$0.006</div>
+                    <div class="cost-desc">Per minute of audio</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Usage Records -->
+        <div class="card">
+            <div class="card-header">
+                <h2>Recent Usage Records</h2>
+                <div class="header-actions">
+                    <button class="btn-secondary" onclick="exportUsageData()">Export CSV</button>
+                    <button class="btn-secondary" onclick="refreshUsageData()">Refresh</button>
+                </div>
+            </div>
+            <div class="table-container">
+                <table class="usage-table">
+                    <thead>
+                        <tr>
+                            <th>Date & Time</th>
+                            <th>Phone Number</th>
+                            <th>Conversation Window</th>
+                            <th>AI Services Used</th>
+                            <th>Base Cost</th>
+                            <th>Markup</th>
+                            <th>Final Cost</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usageTableBody">
+                        <% usageRecords.forEach(record => { %>
+                        <tr>
+                            <td><%= new Date(record.charged_at).toLocaleString() %></td>
+                            <td><%= record.phone_number %></td>
+                            <td>
+                                <span class="window-badge window-<%= record.conversation_window.replace(/[^a-z0-9]/g, '-') %>">
+                                    <%= record.conversation_window.replace(/_/g, ' ').toUpperCase() %>
+                                </span>
+                            </td>
+                            <td>
+                                <div class="services-list">
+                                    <% record.services_used.forEach(service => { %>
+                                        <span class="service-tag service-<%= service.service_type %>">
+                                            <%= service.service_type %>
+                                            <small>(<%= service.total_tokens %> tokens)</small>
+                                        </span>
+                                    <% }); %>
+                                </div>
+                            </td>
+                            <td class="cost-cell">$<%= (record.total_base_cost_usd_micro / 1000000).toFixed(6) %></td>
+                            <td class="markup-cell"><%= record.markup_percentage %>%</td>
+                            <td class="final-cost-cell">$<%= (record.final_cost_usd_micro / 1000000).toFixed(6) %></td>
+                            <td>
+                                <button class="btn-small" onclick="viewRecordDetails('<%= record._id %>')">Details</button>
+                            </td>
+                        </tr>
+                        <% }); %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Balance Modal -->
+    <div id="addBalanceModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add Balance to Wallet</h3>
+                <span class="close" onclick="closeAddBalanceModal()">&times;</span>
+            </div>
+            <form id="addBalanceForm">
+                <div class="form-group">
+                    <label>Amount (INR)</label>
+                    <input type="number" id="addAmountINR" step="1" min="1" placeholder="0" required>
+                    <small>Exchange Rate: 1 USD = ₹<%= exchangeRate.rate %></small>
+                </div>
+                <div class="conversion-display">
+                    <div class="conversion-row">
+                        <span>USD Equivalent:</span>
+                        <span id="usdEquivalent">$0.00</span>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="closeAddBalanceModal()">Cancel</button>
+                    <button type="submit" class="btn-primary">Add Balance</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Transaction History Modal -->
+    <div id="transactionModal" class="modal">
+        <div class="modal-content large-modal">
+            <div class="modal-header">
+                <h3>Transaction History</h3>
+                <span class="close" onclick="closeTransactionModal()">&times;</span>
+            </div>
+            <div class="transaction-list" id="transactionList">
+                <!-- Transactions will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .billing-overview {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .wallet-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 12px;
+        }
+        
+        .wallet-header h2 {
+            margin: 0 0 1rem 0;
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .balance-display {
+            text-align: center;
+        }
+        
+        .balance-usd {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+        
+        .balance-inr {
+            font-size: 1.5rem;
+            opacity: 0.9;
+            margin-bottom: 0.5rem;
+        }
+        
+        .balance-display small {
+            opacity: 0.8;
+            font-size: 0.8rem;
+        }
+        
+        .conversion-display {
+            background: #f8fafc;
+            padding: 1rem;
+            border-radius: 6px;
+            margin: 1rem 0;
+        }
+        
+        .conversion-row {
+            display: flex;
+            justify-content: space-between;
+            font-weight: 600;
+        }
+        
+        .large-modal {
+            width: 600px;
+        }
+        
+        .wallet-actions {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .wallet-actions .btn-primary,
+        .wallet-actions .btn-secondary {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #e5e7eb;
+        }
+        
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #1e40af;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+        
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .pricing-item label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #374151;
+        }
+        
+        .input-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        
+        .input-group input {
+            flex: 1;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px 0 0 6px;
+            border-right: none;
+        }
+        
+        .input-suffix {
+            background: #f9fafb;
+            border: 1px solid #d1d5db;
+            border-left: none;
+            padding: 0.75rem;
+            border-radius: 0 6px 6px 0;
+            color: #6b7280;
+        }
+        
+        .cost-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        
+        .cost-item {
+            background: #f8fafc;
+            padding: 1rem;
+            border-radius: 6px;
+            text-align: center;
+        }
+        
+        .cost-service {
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+        
+        .cost-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #059669;
+            margin-bottom: 0.25rem;
+        }
+        
+        .cost-desc {
+            font-size: 0.8rem;
+            color: #6b7280;
+        }
+        
+        .usage-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        
+        .usage-table th,
+        .usage-table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .usage-table th {
+            background: #f9fafb;
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        .window-badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .window-new-user-4h { background: #fef3c7; color: #92400e; }
+        .window-existing-user-20h { background: #dbeafe; color: #1e40af; }
+        .window-existing-user-24h- { background: #d1fae5; color: #065f46; }
+        
+        .services-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.25rem;
+        }
+        
+        .service-tag {
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 500;
+        }
+        
+        .service-sentiment { background: #e0e7ff; color: #3730a3; }
+        .service-intent { background: #fef3c7; color: #92400e; }
+        .service-agent-process { background: #d1fae5; color: #065f46; }
+        .service-vision { background: #fce7f3; color: #be185d; }
+        .service-stt { background: #f3e8ff; color: #7c2d12; }
+        
+        .cost-cell, .final-cost-cell {
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+        }
+        
+        .final-cost-cell {
+            color: #059669;
+        }
+        
+        .markup-cell {
+            color: #dc2626;
+            font-weight: 600;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 0;
+            border-radius: 8px;
+            width: 400px;
+            max-width: 90%;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .modal-header h3 {
+            margin: 0;
+        }
+        
+        .close {
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #6b7280;
+        }
+        
+        .modal form {
+            padding: 1.5rem;
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            margin-top: 1.5rem;
+        }
+        
+        .btn-small {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+            background: #f3f4f6;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .btn-small:hover {
+            background: #e5e7eb;
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+    </style>
+
+    <script>
+        // Update pricing configuration
+        document.getElementById('pricingForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const data = {
+                new_user_4h_markup: document.getElementById('newUserMarkup').value,
+                existing_user_20h_markup: document.getElementById('existingUser20hMarkup').value,
+                existing_user_24h_markup: document.getElementById('existingUser24hMarkup').value
+            };
+            
+            try {
+                const response = await fetch('/billings/pricing', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    showNotification('Pricing updated successfully!', 'success');
+                } else {
+                    showNotification('Error updating pricing', 'error');
+                }
+            } catch (error) {
+                showNotification('Error: ' + error.message, 'error');
+            }
+        });
+        
+        // Add balance modal functions
+        function showAddBalanceModal() {
+            document.getElementById('addBalanceModal').style.display = 'block';
+        }
+        
+        function closeAddBalanceModal() {
+            document.getElementById('addBalanceModal').style.display = 'none';
+            document.getElementById('addBalanceForm').reset();
+        }
+        
+        // Real-time INR to USD conversion
+        document.getElementById('addAmountINR').addEventListener('input', function() {
+            const inrAmount = parseFloat(this.value) || 0;
+            const exchangeRate = <%= exchangeRate.rate %>;
+            const usdAmount = (inrAmount / exchangeRate).toFixed(6);
+            document.getElementById('usdEquivalent').textContent = '$' + usdAmount;
+        });
+        
+        // Add balance
+        document.getElementById('addBalanceForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const amountINR = document.getElementById('addAmountINR').value;
+            if (!amountINR || amountINR <= 0) {
+                showNotification('Please enter a valid amount', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/billings/wallet/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ amountINR: parseFloat(amountINR) })
+                });
+                
+                if (response.ok) {
+                    showNotification('Balance added successfully!', 'success');
+                    closeAddBalanceModal();
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showNotification('Error adding balance', 'error');
+                }
+            } catch (error) {
+                showNotification('Error: ' + error.message, 'error');
+            }
+        });
+        
+        // Transaction history functions
+        function showTransactionHistory() {
+            document.getElementById('transactionModal').style.display = 'block';
+            loadTransactionHistory();
+        }
+        
+        function closeTransactionModal() {
+            document.getElementById('transactionModal').style.display = 'none';
+        }
+        
+        async function loadTransactionHistory() {
+            try {
+                const response = await fetch('/billings/transactions');
+                const transactions = await response.json();
+                
+                const transactionList = document.getElementById('transactionList');
+                transactionList.innerHTML = transactions.map(tx => `
+                    <div class="transaction-item">
+                        <div class="transaction-header">
+                            <span class="transaction-type ${tx.transaction_type}">${tx.transaction_type.toUpperCase()}</span>
+                            <span class="transaction-date">${new Date(tx.createdAt).toLocaleString()}</span>
+                        </div>
+                        <div class="transaction-details">
+                            <div>Amount: ₹${tx.amount_inr} (${tx.amount_usd_micro / 1000000} USD)</div>
+                            <div>Rate: 1 USD = ₹${tx.exchange_rate}</div>
+                            <div>Description: ${tx.description}</div>
+                            <div>Added by: ${tx.added_by}</div>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                showNotification('Error loading transactions', 'error');
+            }
+        }
+        
+        // Utility functions
+        function showUsageReport() {
+            // TODO: Implement usage report modal
+            showNotification('Usage report feature coming soon!', 'info');
+        }
+        
+        function exportUsageData() {
+            // TODO: Implement CSV export
+            showNotification('Export feature coming soon!', 'info');
+        }
+        
+        function refreshUsageData() {
+            location.reload();
+        }
+        
+        function viewRecordDetails(recordId) {
+            // TODO: Implement record details modal
+            showNotification('Record details feature coming soon!', 'info');
+        }
+        
+        function showNotification(message, type) {
+            // Simple notification system
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            notification.textContent = message;
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 1rem 1.5rem;
+                border-radius: 6px;
+                color: white;
+                z-index: 1001;
+                font-weight: 500;
+            `;
+            
+            if (type === 'success') notification.style.background = '#059669';
+            else if (type === 'error') notification.style.background = '#dc2626';
+            else notification.style.background = '#2563eb';
+            
+            document.body.appendChild(notification);
+            setTimeout(() => notification.remove(), 3000);
+        }
+        
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('addBalanceModal');
+            if (event.target === modal) {
+                closeAddBalanceModal();
+            }
+        }
+    </script>
+</body>
+</html>

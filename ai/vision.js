@@ -35,10 +35,16 @@ async function analyzeImage(imageFilePath) {
             }
         });
 
-        return response.data.choices[0].message.content;
+        const tokenUsage = response.data.usage; // Extract token usage
+        
+        console.log(`Vision analysis completed. Token usage:`, tokenUsage);
+        return { 
+            analysis: response.data.choices[0].message.content,
+            tokenUsage 
+        };
     } catch (error) {
         console.error('Vision API Error:', error.message);
-        return null;
+        return { analysis: null, tokenUsage: null };
     }
 }
 

@@ -58,16 +58,15 @@
                             Intent: <span class="intent-badge intent-<%= chatroom.latestIntent %>"><%= chatroom.latestIntent %></span>
                         </div>
                         <% } %>
-                        <% if (chatroom.latestSentiment) { %>
+                        <% if (chatroom.conversationSentiment && chatroom.conversationSentiment.totalMessages > 0) { %>
                         <div class="meta-item">
-                            <i class="fas fa-heart"></i>
-                            Sentiment: <span class="sentiment-badge sentiment-<%= chatroom.latestSentiment %>"><%= chatroom.latestSentiment %></span>
+                            <i class="fas fa-chart-pie"></i>
+                            Sentiment: 
+                            <span style="color: var(--success-color); font-weight: 500;"><%= chatroom.conversationSentiment.breakdown.positive %>%</span> |
+                            <span style="color: var(--text-secondary); font-weight: 500;"><%= chatroom.conversationSentiment.breakdown.neutral %>%</span> |
+                            <span style="color: var(--error-color); font-weight: 500;"><%= chatroom.conversationSentiment.breakdown.negative %>%</span>
                         </div>
                         <% } %>
-                        <div class="meta-item">
-                            <i class="fas fa-clock"></i>
-                            Last: <%= new Date(chatroom.updatedAt).toLocaleString() %>
-                        </div>
                         <% if (chatroom.slaInfo) { %>
                         <div class="meta-item">
                             <i class="fas fa-clock"></i>
@@ -77,6 +76,11 @@
                             <% } %>
                         </div>
                         <% } %>
+                    </div>
+                    
+                    <div class="last-activity">
+                        <i class="fas fa-clock"></i>
+                        Last: <%= new Date(chatroom.updatedAt).toLocaleString() %>
                     </div>
                     
                     <div class="last-message">
@@ -245,6 +249,22 @@
     text-align: center;
 }
 
+.last-activity {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.last-activity i {
+    width: 16px;
+    text-align: center;
+}
+
 .last-message {
     background: #f1f5f9;
     padding: 1rem;
@@ -323,6 +343,33 @@
 .sentiment-positive { background: #e8f5e8; color: #388e3c; }
 .sentiment-neutral { background: #f3f4f6; color: #6b7280; }
 .sentiment-negative { background: #ffebee; color: #d32f2f; }
+
+.conversation-sentiment {
+    padding: 0.2rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: capitalize;
+    border: 1px solid;
+}
+
+.conversation-sentiment.sentiment-positive {
+    background: #e8f5e8;
+    color: #2e7d32;
+    border-color: #a5d6a7;
+}
+
+.conversation-sentiment.sentiment-neutral {
+    background: #f5f5f5;
+    color: #616161;
+    border-color: #e0e0e0;
+}
+
+.conversation-sentiment.sentiment-negative {
+    background: #ffebee;
+    color: #c62828;
+    border-color: #ef9a9a;
+}
 
 @media (max-width: 768px) {
     .search-box input { width: 100%; }

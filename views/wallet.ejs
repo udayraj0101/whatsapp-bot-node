@@ -1,0 +1,1196 @@
+<%- include('partials/layout-header', { title: 'Wallet', currentPage: 'wallet' }) %>
+
+<div class="content-header">
+    <h1><i class="fas fa-wallet"></i> My Wallet</h1>
+    <p>View your wallet balance and transaction history</p>
+</div>
+
+<!-- Wallet Overview Cards -->
+<div class="card-grid">
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-coins" style="color: var(--primary-color);"></i> Current Balance</h3>
+            <div class="muted">Available funds</div>
+        </div>
+        <div class="card-content">
+            <div class="stat-number">$<%= (wallet.balance_usd_micro / 1000000).toFixed(6) %></div>
+            <div class="stat-sub">₹<%= ((wallet.balance_usd_micro / 1000000) * exchangeRate.rate).toFixed(2) %></div>
+            <div class="muted" style="margin-top: 0.5rem;">
+                <i class="fas fa-exchange-alt"></i> 1 USD = ₹<%= exchangeRate.rate %>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-rupee-sign" style="color: var(--success-color);"></i> Total Spent</h3>
+            <div class="muted">All time usage</div>
+        </div>
+        <div class="card-content">
+            <div class="stat-number">₹<%= totalSpentINR.toFixed(2) %></div>
+            <div class="stat-sub">Total expenditure</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-comments" style="color: var(--accent-color);"></i> Messages</h3>
+            <div class="muted">Total processed</div>
+        </div>
+        <div class="card-content">
+            <div class="stat-number"><%= totalMessages %></div>
+            <div class="stat-sub">Messages handled</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3><i class="fas fa-calculator" style="color: var(--warning-color);"></i> Average Cost</h3>
+            <div class="muted">Per message</div>
+        </div>
+        <div class="card-content">
+            <div class="stat-number">₹<%= avgCostINR.toFixed(4) %></div>
+            <div class="stat-sub">Cost efficiency</div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Transactions -->
+<div class="card" style="margin-top: 2rem;">
+    <div class="card-header">
+        <h3><i class="fas fa-history"></i> Recent Transactions</h3>
+    </div>
+    <div class="card-content">
+        <% if (transactions.length === 0) { %>
+            <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                <i class="fas fa-receipt" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.3;"></i>
+                <h3 style="margin-bottom: 0.5rem;">No transactions yet</h3>
+                <p>Your transaction history will appear here once you start using the service.</p>
+            </div>
+        <% } else { %>
+            <div style="overflow-x: auto;">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Description</th>
+                            <th>Amount (INR)</th>
+                            <th>Amount (USD)</th>
+                            <th>Rate</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% transactions.forEach(transaction => { %>
+                            <tr>
+                                <td>
+                                    <% if (transaction.transaction_type === 'credit') { %>
+                                        <span style="color: var(--success-color); font-weight: 500;">
+                                            <i class="fas fa-plus-circle"></i> Credit
+                                        </span>
+                                    <% } else { %>
+                                        <span style="color: var(--error-color); font-weight: 500;">
+                                            <i class="fas fa-minus-circle"></i> Debit
+                                        </span>
+                                    <% } %>
+                                </td>
+                                <td><%= transaction.description %></td>
+                                <td style="color: <%= transaction.transaction_type === 'credit' ? 'var(--success-color)' : 'var(--error-color)' %>; font-weight: 500;">
+                                    <%= transaction.transaction_type === 'credit' ? '+' : '-' %>₹<%= transaction.amount_inr %>
+                                </td>
+                                <td>$<%= (transaction.amount_usd_micro / 1000000).toFixed(6) %></td>
+                                <td>₹<%= transaction.exchange_rate %></td>
+                                <td><%= new Date(transaction.createdAt).toLocaleString() %></td>
+                            </tr>
+                        <% }); %>
+                    </tbody>
+                </table>
+            </div>
+        <% } %>
+    </div>
+</div>
+
+<!-- Usage Summary -->
+<div class="card" style="margin-top: 2rem;">
+    <div class="card-header">
+        <h3><i class="fas fa-chart-pie"></i> Usage Summary (Last 30 Days)</h3>
+    </div>
+    <div class="card-content">
+        <% if (usageSummary.length === 0) { %>
+            <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                <i class="fas fa-chart-bar" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.3;"></i>
+                <h3 style="margin-bottom: 0.5rem;">No usage data yet</h3>
+                <p>Start using AI services to see your usage breakdown here.</p>
+            </div>
+        <% } else { %>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
+                <% usageSummary.forEach(service => { %>
+                    <div style="padding: 1rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--surface-color);">
+                        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
+                            <div style="width: 40px; height: 40px; border-radius: 8px; background: var(--primary-color); color: white; display: flex; align-items: center; justify-content: center;">
+                                <% if (service.service_type === 'sentiment') { %>
+                                    <i class="fas fa-smile"></i>
+                                <% } else if (service.service_type === 'intent') { %>
+                                    <i class="fas fa-bullseye"></i>
+                                <% } else if (service.service_type === 'agent_process') { %>
+                                    <i class="fas fa-robot"></i>
+                                <% } else if (service.service_type === 'vision') { %>
+                                    <i class="fas fa-eye"></i>
+                                <% } else if (service.service_type === 'stt') { %>
+                                    <i class="fas fa-microphone"></i>
+                                <% } else { %>
+                                    <i class="fas fa-cog"></i>
+                                <% } %>
+                            </div>
+                            <div>
+                                <div style="font-weight: 600; text-transform: capitalize;"><%= service.service_type.replace('_', ' ') %></div>
+                                <div style="color: var(--text-muted); font-size: 0.9rem;"><%= service.count %> uses</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="color: var(--text-secondary); font-size: 0.9rem;">Total Cost</div>
+                            <div>
+                                <div style="font-weight: 600; color: var(--primary-color);">₹<%= (service.total_cost * exchangeRate.rate).toFixed(4) %></div>
+                                <div style="color: var(--text-muted); font-size: 0.8rem;">$<%= service.total_cost.toFixed(6) %></div>
+                            </div>
+                        </div>
+                    </div>
+                <% }); %>
+            </div>
+        <% } %>
+    </div>
+</div>
+
+<% if (typeof user !== 'undefined' && user.role === 'admin') { %>
+<!-- Add Balance Modal (Admin Only) -->
+<div id="addBalanceModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-plus-circle"></i> Add Balance to Wallet</h3>
+            <span class="close" onclick="closeAddBalanceModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="addBalanceForm">
+                <div class="form-group">
+                    <label for="addAmountINR">Amount (INR)</label>
+                    <div class="input-group">
+                        <span class="input-prefix">₹</span>
+                        <input type="number" id="addAmountINR" step="1" min="1" placeholder="Enter amount" required>
+                    </div>
+                    <small class="form-text"><i class="fas fa-info-circle"></i> Exchange Rate: 1 USD = ₹<%= exchangeRate.rate %></small>
+                </div>
+                <div class="conversion-display">
+                    <div class="conversion-row">
+                        <span>USD Equivalent:</span>
+                        <span id="usdEquivalent" class="conversion-amount">$0.00</span>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeAddBalanceModal()">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add Balance
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+    <style>
+        /* Wallet-specific styles that extend the main CRM styles */
+        .wallet-balance-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+        }
+        
+        .wallet-balance-card .card-header h3 {
+            color: white;
+            margin: 0;
+        }
+        
+        .balance-display {
+            text-align: center;
+            padding: 1rem 0;
+        }
+        
+        .balance-main {
+            display: flex;
+            align-items: baseline;
+            justify-content: center;
+            margin-bottom: 0.5rem;
+        }
+        
+        .balance-main .currency {
+            font-size: 1.5rem;
+            margin-right: 0.25rem;
+            opacity: 0.9;
+        }
+        
+        .balance-main .amount {
+            font-size: 2.5rem;
+            font-weight: bold;
+        }
+        
+        .balance-secondary {
+            font-size: 1.5rem;
+            opacity: 0.9;
+            margin-bottom: 0.5rem;
+        }
+        
+        .exchange-rate {
+            opacity: 0.8;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+        
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: #f8fafc;
+            border-radius: 8px;
+        }
+        
+        .stat-icon {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #e0e7ff;
+            color: #3730a3;
+            border-radius: 50%;
+            font-size: 1.2rem;
+        }
+        
+        .stat-value {
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: #1e40af;
+        }
+        
+        .stat-label {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+        
+        .transaction-type {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        
+        .transaction-type.credit {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .transaction-type.debit {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .amount.credit {
+            color: #059669;
+            font-weight: 600;
+        }
+        
+        .amount.debit {
+            color: #dc2626;
+            font-weight: 600;
+        }
+        
+        .amount-usd {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+        
+        .usage-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+        
+        .usage-item {
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 1rem;
+        }
+        
+        .usage-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+        
+        .service-icon {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #e0e7ff;
+            color: #3730a3;
+            border-radius: 6px;
+        }
+        
+        .service-name {
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        .usage-stats {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .usage-count {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+        
+        .usage-cost {
+            text-align: right;
+        }
+        
+        .cost-inr {
+            font-weight: 600;
+            color: #1e40af;
+        }
+        
+        .cost-usd {
+            font-size: 0.8rem;
+            color: #6b7280;
+        }
+        
+        .input-group {
+            display: flex;
+            align-items: center;
+        }
+        
+        .input-prefix {
+            background: #f9fafb;
+            border: 1px solid #d1d5db;
+            border-right: none;
+            padding: 0.75rem;
+            border-radius: 6px 0 0 6px;
+            color: #6b7280;
+            font-weight: 600;
+        }
+        
+        .input-group input {
+            border-radius: 0 6px 6px 0;
+            border-left: none;
+        }
+        
+        .conversion-display {
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            padding: 1rem;
+            border-radius: 6px;
+            margin: 1rem 0;
+        }
+        
+        .conversion-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .conversion-amount {
+            font-weight: bold;
+            color: #0369a1;
+            font-size: 1.1rem;
+        }
+        
+        .form-text {
+            color: #6b7280;
+            font-size: 0.85rem;
+            margin-top: 0.25rem;
+            display: block;
+        }
+        
+        .modal {
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .modal-header h3 {
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .close {
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #6b7280;
+            background: none;
+            border: none;
+            padding: 0.25rem;
+        }
+        
+        .close:hover {
+            color: #374151;
+        }
+        
+        .modal-body {
+            padding: 1.5rem;
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            margin-top: 1.5rem;
+        }
+    </style>
+
+    <script>
+        function loadAllTransactions() {
+            window.location.href = '/wallet/transactions';
+        }
+        
+        // Add balance modal functions
+        function showAddBalanceModal() {
+            document.getElementById('addBalanceModal').style.display = 'block';
+        }
+        
+        function closeAddBalanceModal() {
+            document.getElementById('addBalanceModal').style.display = 'none';
+            document.getElementById('addBalanceForm').reset();
+        }
+        
+        // Add balance form submission
+        document.getElementById('addBalanceForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const amountINR = document.getElementById('addAmountINR').value;
+            if (!amountINR || amountINR <= 0) {
+                showNotification('Please enter a valid amount', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/wallet/add-balance', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ amountINR: parseFloat(amountINR) })
+                });
+                
+                if (response.ok) {
+                    showNotification('Balance added successfully!', 'success');
+                    closeAddBalanceModal();
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    const error = await response.json();
+                    showNotification(error.error || 'Error adding balance', 'error');
+                }
+            } catch (error) {
+                showNotification('Error: ' + error.message, 'error');
+            }
+        });
+        
+    <script>
+        function loadAllTransactions() {
+            // Redirect to a dedicated transactions page or show modal
+            showNotification('Loading all transactions...', 'info');
+            // You can implement a full transactions page or modal here
+        }
+        
+        // Add balance modal functions
+        function showAddBalanceModal() {
+            document.getElementById('addBalanceModal').style.display = 'flex';
+            document.getElementById('addAmountINR').focus();
+        }
+        
+        function closeAddBalanceModal() {
+            document.getElementById('addBalanceModal').style.display = 'none';
+            document.getElementById('addBalanceForm').reset();
+            document.getElementById('usdEquivalent').textContent = '$0.00';
+        }
+        
+        // Real-time INR to USD conversion
+        document.addEventListener('DOMContentLoaded', function() {
+            const amountInput = document.getElementById('addAmountINR');
+            const usdDisplay = document.getElementById('usdEquivalent');
+            const exchangeRate = <%= exchangeRate.rate %>;
+            
+            amountInput.addEventListener('input', function() {
+                const inrAmount = parseFloat(this.value) || 0;
+                const usdAmount = (inrAmount / exchangeRate).toFixed(6);
+                usdDisplay.textContent = '$' + usdAmount;
+            });
+            
+            // Add balance form submission
+            document.getElementById('addBalanceForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const amountINR = amountInput.value;
+                if (!amountINR || amountINR <= 0) {
+                    showNotification('Please enter a valid amount', 'error');
+                    return;
+                }
+                
+                // Disable submit button to prevent double submission
+                const submitBtn = e.target.querySelector('button[type="submit"]');
+                const originalText = submitBtn.innerHTML;
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+                
+                try {
+                    const response = await fetch('/wallet/add-balance', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ amountINR: parseFloat(amountINR) })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (response.ok) {
+                        showNotification('Balance added successfully!', 'success');
+                        closeAddBalanceModal();
+                        setTimeout(() => location.reload(), 1500);
+                    } else {
+                        showNotification(result.error || 'Error adding balance', 'error');
+                    }
+                } catch (error) {
+                    showNotification('Network error: ' + error.message, 'error');
+                } finally {
+                    // Re-enable submit button
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                }
+            });
+        });
+        
+        function showNotification(message, type = 'info') {
+            // Remove existing notifications
+            const existing = document.querySelectorAll('.notification');
+            existing.forEach(n => n.remove());
+            
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            notification.innerHTML = `
+                <div class="notification-content">
+                    <i class="fas ${
+                        type === 'success' ? 'fa-check-circle' :
+                        type === 'error' ? 'fa-exclamation-circle' :
+                        type === 'warning' ? 'fa-exclamation-triangle' :
+                        'fa-info-circle'
+                    }"></i>
+                    <span>${message}</span>
+                </div>
+                <button class="notification-close" onclick="this.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 1rem 1.5rem;
+                border-radius: 8px;
+                color: white;
+                z-index: 1001;
+                font-weight: 500;
+                min-width: 300px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                animation: slideIn 0.3s ease-out;
+            `;
+            
+            const colors = {
+                success: '#059669',
+                error: '#dc2626',
+                warning: '#d97706',
+                info: '#2563eb'
+            };
+            
+            notification.style.background = colors[type] || colors.info;
+            
+            document.body.appendChild(notification);
+            
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.style.animation = 'slideOut 0.3s ease-in';
+                    setTimeout(() => notification.remove(), 300);
+                }
+            }, 5000);
+        }
+        
+        // Close modal when clicking outside
+        document.addEventListener('click', function(event) {
+            const modal = document.getElementById('addBalanceModal');
+            if (event.target === modal) {
+                closeAddBalanceModal();
+            }
+        });
+        
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeAddBalanceModal();
+            }
+        });
+    </script>
+    
+    <style>
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+        
+        .notification-content {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .notification-close {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            padding: 0.25rem;
+            opacity: 0.8;
+        }
+        
+        .notification-close:hover {
+            opacity: 1;
+        }
+    </style>
+</body>
+</html>
+
+<style>
+    /* Wallet-specific styles that extend the main CRM styles */
+    .balance-main {
+        display: flex;
+        align-items: baseline;
+        justify-content: center;
+    }
+    
+    .balance-main .currency {
+        font-size: 1.2rem;
+        margin-right: 0.25rem;
+        opacity: 0.9;
+    }
+    
+    .balance-secondary {
+        font-size: 1.1rem;
+        opacity: 0.8;
+        margin-top: 0.25rem;
+    }
+    
+    .exchange-rate {
+        margin-top: 0.5rem;
+    }
+    
+    .transaction-type {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+    
+    .transaction-type.credit {
+        background: #d1fae5;
+        color: #065f46;
+    }
+    
+    .transaction-type.debit {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+    
+    .amount.credit {
+        color: var(--success-color);
+        font-weight: 600;
+    }
+    
+    .amount.debit {
+        color: var(--error-color);
+        font-weight: 600;
+    }
+    
+    .amount-usd {
+        color: var(--text-muted);
+        font-size: 0.9rem;
+    }
+    
+    .usage-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem;
+    }
+    
+    .usage-item {
+        background: var(--background-color);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 1rem;
+    }
+    
+    .usage-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    .service-icon {
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--primary-color);
+        color: white;
+        border-radius: 6px;
+    }
+    
+    .service-name {
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    
+    .usage-stats {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .usage-count {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+    }
+    
+    .usage-cost {
+        text-align: right;
+    }
+    
+    .cost-inr {
+        font-weight: 600;
+        color: var(--primary-color);
+        display: block;
+    }
+    
+    .cost-usd {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+    }
+    
+    .input-group {
+        display: flex;
+        align-items: center;
+    }
+    
+    .input-prefix {
+        background: var(--background-color);
+        border: 1px solid var(--border-color);
+        border-right: none;
+        padding: 0.75rem;
+        border-radius: 6px 0 0 6px;
+        color: var(--text-secondary);
+        font-weight: 600;
+    }
+    
+    .input-group input {
+        border-radius: 0 6px 6px 0;
+        border-left: none;
+        padding: 0.75rem;
+        border: 1px solid var(--border-color);
+        background: var(--surface-color);
+        color: var(--text-primary);
+        font-size: 1rem;
+        flex: 1;
+    }
+    
+    .conversion-display {
+        background: #f0f9ff;
+        border: 1px solid #bae6fd;
+        padding: 1rem;
+        border-radius: 6px;
+        margin: 1rem 0;
+    }
+    
+    .conversion-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .conversion-amount {
+        font-weight: bold;
+        color: #0369a1;
+        font-size: 1.1rem;
+    }
+    
+    .form-text {
+        color: var(--text-muted);
+        font-size: 0.85rem;
+        margin-top: 0.25rem;
+        display: block;
+    }
+    
+    .form-group {
+        margin-bottom: 1rem;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    
+    .modal {
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .modal-content {
+        background: var(--surface-color);
+        border-radius: 8px;
+        width: 90%;
+        max-width: 500px;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: var(--shadow-lg);
+    }
+    
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.5rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .modal-header h3 {
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--text-primary);
+    }
+    
+    .close {
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: var(--text-secondary);
+        background: none;
+        border: none;
+        padding: 0.25rem;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+    }
+    
+    .close:hover {
+        color: var(--text-primary);
+        background: var(--background-color);
+    }
+    
+    .modal-body {
+        padding: 1.5rem;
+    }
+    
+    .modal-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: flex-end;
+        margin-top: 1.5rem;
+    }
+    
+    .btn-sm {
+        padding: 0.5rem 1rem;
+        font-size: 0.8rem;
+    }
+    
+    .card-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .table-responsive {
+        overflow-x: auto;
+    }
+    
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    
+    @keyframes slideOut {
+        from {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+    }
+    
+    .notification-content {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .notification-close {
+        background: none;
+        border: none;
+        color: white;
+        cursor: pointer;
+        padding: 0.25rem;
+        opacity: 0.8;
+    }
+    
+    .notification-close:hover {
+        opacity: 1;
+    }
+    
+    @media (max-width: 768px) {
+        .stats {
+            grid-template-columns: 1fr;
+        }
+        
+        .usage-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .modal-content {
+            width: 95%;
+            margin: 1rem;
+        }
+        
+        .modal-body {
+            padding: 1rem;
+        }
+        
+        .modal-header {
+            padding: 1rem;
+        }
+    }
+</style>
+
+<script>
+    function loadAllTransactions() {
+        showNotification('Loading all transactions...', 'info');
+    }
+    
+    function showAddBalanceModal() {
+        document.getElementById('addBalanceModal').style.display = 'flex';
+        document.getElementById('addAmountINR').focus();
+    }
+    
+    function closeAddBalanceModal() {
+        document.getElementById('addBalanceModal').style.display = 'none';
+        document.getElementById('addBalanceForm').reset();
+        document.getElementById('usdEquivalent').textContent = '$0.00';
+    }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        const amountInput = document.getElementById('addAmountINR');
+        const usdDisplay = document.getElementById('usdEquivalent');
+        const exchangeRate = <%= exchangeRate.rate %>;
+        
+        amountInput.addEventListener('input', function() {
+            const inrAmount = parseFloat(this.value) || 0;
+            const usdAmount = (inrAmount / exchangeRate).toFixed(6);
+            usdDisplay.textContent = '$' + usdAmount;
+        });
+        
+        document.getElementById('addBalanceForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const amountINR = amountInput.value;
+            if (!amountINR || amountINR <= 0) {
+                showNotification('Please enter a valid amount', 'error');
+                return;
+            }
+            
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            
+            try {
+                const response = await fetch('/wallet/add-balance', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ amountINR: parseFloat(amountINR) })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showNotification('Balance added successfully!', 'success');
+                    closeAddBalanceModal();
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showNotification(result.error || 'Error adding balance', 'error');
+                }
+            } catch (error) {
+                showNotification('Network error: ' + error.message, 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
+        });
+    });
+    
+    function showNotification(message, type = 'info') {
+        const existing = document.querySelectorAll('.notification');
+        existing.forEach(n => n.remove());
+        
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.innerHTML = `
+            <div class="notification-content">
+                <i class="fas ${
+                    type === 'success' ? 'fa-check-circle' :
+                    type === 'error' ? 'fa-exclamation-circle' :
+                    type === 'warning' ? 'fa-exclamation-triangle' :
+                    'fa-info-circle'
+                }"></i>
+                <span>${message}</span>
+            </div>
+            <button class="notification-close" onclick="this.parentElement.remove()">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+        
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            color: white;
+            z-index: 1001;
+            font-weight: 500;
+            min-width: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            animation: slideIn 0.3s ease-out;
+        `;
+        
+        const colors = {
+            success: '#059669',
+            error: '#dc2626',
+            warning: '#d97706',
+            info: '#2563eb'
+        };
+        
+        notification.style.background = colors[type] || colors.info;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.style.animation = 'slideOut 0.3s ease-in';
+                setTimeout(() => notification.remove(), 300);
+            }
+        }, 5000);
+    }
+    
+    document.addEventListener('click', function(event) {
+        const modal = document.getElementById('addBalanceModal');
+        if (event.target === modal) {
+            closeAddBalanceModal();
+        }
+    });
+    
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            closeAddBalanceModal();
+        }
+    });
+</script>
+
+<%- include('partials/layout-footer') %>
+<% } %>

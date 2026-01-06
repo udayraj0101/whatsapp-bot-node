@@ -5,14 +5,14 @@ const axios = require('axios');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const { connectDB, createOrGetChatroom, saveMessage, Chatroom, Message, AgentContext, getAgentContext, saveAgentContext, Vendor, Pricing, generateVendorId } = require('./models/database');
+const { connectDB, createOrGetChatroom, saveMessage, Chatroom, Message, AgentContext, getAgentContext, saveAgentContext, Vendor, generateVendorId } = require('./models/database');
 const { transcribeAudio } = require('./ai/stt');
 const { analyzeImage } = require('./ai/vision');
 const { detectIntent } = require('./ai/intent');
 const { analyzeSentiment } = require('./ai/sentiment');
-const { getSLAStats, updateConversationStatus, calculateSLAStatus } = require('./services/sla');
 const { autoTagFromIntent, getFixedTags } = require('./ai/tagging');
-const { generateToken, requireAuth, redirectIfAuthenticated, verifyToken, requireAdmin, generateAdminToken, redirectIfAdminAuthenticated } = require('./middleware/auth');
+const { generateToken, requireAuth, redirectIfAuthenticated, verifyToken, generateAdminToken, verifyAdminToken, requireAdmin, redirectIfAdminAuthenticated } = require('./middleware/auth');
+const BillingEngine = require('./billing/BillingEngine');
 
 const app = express();
 const API_BASE = process.env.API_BASE_URL || 'http://localhost:8000';
@@ -20,6 +20,9 @@ const WHATSAPP_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN;
 const WHATSAPP_PHONE_ID = process.env.WHATSAPP_PHONE_ID;
 const WEBHOOK_VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN;
 const WHATSAPP_APP_SECRET = process.env.WHATSAPP_APP_SECRET;
+
+// Initialize billing engine
+const billingEngine = new BillingEngine();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -52,7 +55,7 @@ app.use(async (req, res, next) => {
     try {
         const adminToken = req.session?.adminToken || req.headers['admin-authorization']?.replace('Bearer ', '');
         if (adminToken) {
-            const decodedAdmin = require('./middleware/auth').verifyAdminToken(adminToken);
+            const decodedAdmin = verifyAdminToken(adminToken);
             const AdminUser = require('./models/admin');
             const admin = await AdminUser.findById(decodedAdmin.adminId);
             if (admin && admin.is_active) res.locals.admin = admin;
@@ -70,6 +73,110 @@ app.use(async (req, res, next) => {
 
 // Connect to MongoDB
 connectDB();
+
+// Calculate conversation-level sentiment based on message sentiments
+function calculateConversationSentiment(sentimentCounts) {
+    const total = sentimentCounts.positive + sentimentCounts.neutral + sentimentCounts.negative;
+    
+    if (total === 0) return { overall: 'unknown', confidence: 0, score: 0 };
+    
+    // Calculate weighted score: positive=1, neutral=0, negative=-1
+    const score = (sentimentCounts.positive - sentimentCounts.negative) / total;
+    
+    // Determine overall sentiment
+    let overall;
+    let confidence;
+    
+    if (score > 0.3) {
+        overall = 'positive';
+        confidence = Math.min(95, 50 + (score * 45)); // 50-95% confidence
+    } else if (score < -0.3) {
+        overall = 'negative';
+        confidence = Math.min(95, 50 + (Math.abs(score) * 45));
+    } else {
+        overall = 'neutral';
+        confidence = Math.max(60, 100 - (Math.abs(score) * 40)); // Higher confidence for neutral
+    }
+    
+    return {
+        overall,
+        confidence: Math.round(confidence),
+        score: Math.round(score * 100) / 100,
+        breakdown: {
+            positive: Math.round((sentimentCounts.positive / total) * 100),
+            neutral: Math.round((sentimentCounts.neutral / total) * 100),
+            negative: Math.round((sentimentCounts.negative / total) * 100)
+        },
+        totalMessages: total
+    };
+}
+
+// SLA Helper Functions
+function calculateSLAStatus(chatroom, firstUserMessage) {
+    if (!firstUserMessage) {
+        return { status: 'no_messages', timeRemaining: 'N/A' };
+    }
+
+    const now = new Date();
+    const messageTime = new Date(firstUserMessage.createdAt);
+    const timeDiff = now - messageTime;
+    const hoursElapsed = timeDiff / (1000 * 60 * 60);
+
+    // SLA: 24 hours for first response
+    const slaHours = 24;
+    const remainingHours = slaHours - hoursElapsed;
+
+    if (remainingHours > 0) {
+        return {
+            status: 'on_time',
+            timeRemaining: `${Math.ceil(remainingHours)}h`,
+            hoursElapsed: Math.floor(hoursElapsed)
+        };
+    } else {
+        return {
+            status: 'overdue',
+            timeRemaining: 'Overdue',
+            hoursOverdue: Math.floor(Math.abs(remainingHours))
+        };
+    }
+}
+
+async function getSLAStats(vendorId) {
+    const chatrooms = await Chatroom.find({ vendor_id: vendorId });
+    let onTime = 0;
+    let overdue = 0;
+    let noMessages = 0;
+
+    for (const chatroom of chatrooms) {
+        const firstUserMessage = await Message.findOne({
+            chatroom_id: chatroom._id,
+            message_type: 'user'
+        }).sort({ createdAt: 1 });
+
+        const slaInfo = calculateSLAStatus(chatroom, firstUserMessage);
+        
+        if (slaInfo.status === 'on_time') onTime++;
+        else if (slaInfo.status === 'overdue') overdue++;
+        else noMessages++;
+    }
+
+    return {
+        total: chatrooms.length,
+        onTime,
+        overdue,
+        noMessages,
+        onTimePercentage: chatrooms.length > 0 ? Math.round((onTime / chatrooms.length) * 100) : 0
+    };
+}
+
+async function updateConversationStatus(chatroomId, status, vendorId) {
+    const chatroom = await Chatroom.findOneAndUpdate(
+        { _id: chatroomId, vendor_id: vendorId },
+        { status: status, updatedAt: new Date() },
+        { new: true }
+    );
+    return chatroom;
+}
 
 // Create uploads and public directories if they don't exist
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -304,8 +411,9 @@ async function handleIncomingMessage(message, value, phoneNumberId) {
     try {
         // Vendor already identified above - no need to query again
 
-        const businessId = 1; // Use simple business_id for MVP
-        const agentId = 1; // Always use agent_id 1 for default agent
+        // Use vendor-specific business_id and agent_id
+        const businessId = vendor.business_id || 1; // Use vendor's business_id or default to 1
+        const agentId = vendor.agent_id || 1; // Use vendor's agent_id or default to 1
 
         // Create or get chatroom - VENDOR SCOPED
         const chatroom = await createOrGetChatroom(vendor.vendor_id, businessId, agentId, from, from);
@@ -314,6 +422,15 @@ async function handleIncomingMessage(message, value, phoneNumberId) {
         // Save user message with AI intelligence - VENDOR SCOPED
         const mediaUrl = mediaInfo ? `uploads/${mediaInfo.split(' - ')[1]?.replace(']', '')}` : null;
         const userMessage = await saveMessageWithAI(vendor.vendor_id, chatroom._id, 'user', messageText, from, messageType !== 'text' ? messageType : null, mediaUrl, message.id);
+
+        // Collect AI usage data for billing
+        let aiUsageData = [];
+
+        // Add usage from AI services used in saveMessageWithAI
+        if (userMessage.aiUsageData) {
+            aiUsageData = [...userMessage.aiUsageData];
+            console.log(`[BILLING] Collected ${aiUsageData.length} AI services from message processing`);
+        }
 
         // Get agent context from database (fresh fetch each time)
         console.log(`Fetching agent context for vendor: ${vendor.vendor_id}, business_id: ${businessId}, agent_id: ${agentId}`);
@@ -343,12 +460,59 @@ async function handleIncomingMessage(message, value, phoneNumberId) {
         const response = await axios.post(`${API_BASE}/agent/process`, agentRequest);
 
         console.log(`API Response: ${JSON.stringify(response.data)}`);
+
+        // Collect agent/process API usage for billing
+        if (response.data.token_usage) {
+            aiUsageData.push({
+                service_type: 'agent_process',
+                model_name: response.data.model_name || 'gpt-4o-mini',
+                prompt_tokens: response.data.token_usage.prompt_tokens || 0,
+                completion_tokens: response.data.token_usage.completion_tokens || 0,
+                total_tokens: response.data.token_usage.total_tokens || 0,
+                duration_seconds: 0
+            });
+        }
+
         await sendMessage(from, response.data.ai_response);
         console.log(`[MESSAGE_LIFECYCLE] RESPONDED - Vendor: ${vendor.vendor_id}, From: ${from}, Response: ${response.data.ai_response}`);
 
         // Save bot response - VENDOR SCOPED
         await saveMessage(vendor.vendor_id, chatroom._id, 'bot', response.data.ai_response, from);
         console.log(`[DATA_VALIDATION] Bot response saved with vendor_id: ${vendor.vendor_id}`);
+
+        // BILLING: Calculate and charge for AI usage
+        try {
+            if (aiUsageData.length > 0) {
+                console.log(`[BILLING] Processing billing for ${aiUsageData.length} AI services`);
+
+                const costCalculation = await billingEngine.calculateMessageCost(
+                    vendor.vendor_id,
+                    from,
+                    aiUsageData,
+                    userMessage._id
+                );
+
+                console.log(`[BILLING] Cost calculation:`, costCalculation);
+
+                const billingResult = await billingEngine.chargeVendor(
+                    vendor.vendor_id,
+                    from,
+                    userMessage._id,
+                    costCalculation
+                );
+
+                console.log(`[BILLING] Billing result:`, billingResult);
+            } else {
+                console.log('[BILLING] No AI usage data to bill');
+            }
+        } catch (billingError) {
+            console.error('[BILLING] Billing failed:', billingError.message);
+            // Don't fail the message processing if billing fails
+            if (billingError.message.includes('Insufficient balance')) {
+                console.warn(`[BILLING] Vendor ${vendor.vendor_id} has insufficient balance`);
+                // TODO: Send low balance notification to vendor
+            }
+        }
 
         if (mediaInfo) {
             console.log(`Media processed: ${mediaInfo}`);
@@ -367,6 +531,7 @@ async function saveMessageWithAI(vendorId, chatroomId, messageType, content, pho
         let intent = null;
         let sentiment = null;
         let tags = [];
+        const aiUsageData = [];
 
         // Only analyze user messages for intelligence
         if (messageType === 'user' && content && !content.includes('[Media received:')) {
@@ -376,16 +541,39 @@ async function saveMessageWithAI(vendorId, chatroomId, messageType, content, pho
             const [detectedIntent, detectedSentiment] = await Promise.all([
                 detectIntent(content).catch(err => {
                     console.log('Intent detection failed:', err.message);
-                    return null;
+                    return { intent: null, tokenUsage: null };
                 }),
                 analyzeSentiment(content).catch(err => {
                     console.log('Sentiment analysis failed:', err.message);
-                    return null;
+                    return { sentiment: null, tokenUsage: null };
                 })
             ]);
 
-            intent = detectedIntent;
-            sentiment = detectedSentiment;
+            intent = detectedIntent.intent;
+            sentiment = detectedSentiment.sentiment;
+
+            // Collect usage data for billing
+            if (detectedIntent.tokenUsage) {
+                aiUsageData.push({
+                    service_type: 'intent',
+                    model_name: 'gpt-3.5-turbo',
+                    prompt_tokens: detectedIntent.tokenUsage.prompt_tokens || 0,
+                    completion_tokens: detectedIntent.tokenUsage.completion_tokens || 0,
+                    total_tokens: detectedIntent.tokenUsage.total_tokens || 0,
+                    duration_seconds: 0
+                });
+            }
+
+            if (detectedSentiment.tokenUsage) {
+                aiUsageData.push({
+                    service_type: 'sentiment',
+                    model_name: 'gpt-3.5-turbo',
+                    prompt_tokens: detectedSentiment.tokenUsage.prompt_tokens || 0,
+                    completion_tokens: detectedSentiment.tokenUsage.completion_tokens || 0,
+                    total_tokens: detectedSentiment.tokenUsage.total_tokens || 0,
+                    duration_seconds: 0
+                });
+            }
 
             console.log(`[AI_RESULTS] Intent: ${intent}, Sentiment: ${sentiment}`);
 
@@ -426,6 +614,8 @@ async function saveMessageWithAI(vendorId, chatroomId, messageType, content, pho
             }
         }
 
+        // Return message with AI usage data for billing
+        savedMessage.aiUsageData = aiUsageData;
         return savedMessage;
     } catch (error) {
         console.error(`[AI_PROCESSING] Error saving message with AI for vendor ${vendorId}:`, error);
@@ -532,7 +722,10 @@ async function downloadMedia(mediaId, mediaType, from) {
 // Web routes (Protected)
 app.get('/', requireAuth, async (req, res) => {
     try {
+        console.log(`[DASHBOARD] Loading for vendor: ${req.vendorId}`);
+        
         const chatrooms = await Chatroom.find({ vendor_id: req.vendorId }).sort({ updatedAt: -1 });
+        console.log(`[DASHBOARD] Found ${chatrooms.length} chatrooms`);
 
         // Calculate AI Response Rate
         let totalUserMessages = 0;
@@ -585,19 +778,29 @@ app.get('/', requireAuth, async (req, res) => {
                 negative: userMessages.filter(m => m.sentiment === 'negative').length
             };
 
-            // Calculate SLA info
-            const firstUserMessage = await Message.findOne({
-                chatroom_id: chatroom._id,
-                message_type: 'user'
-            }).sort({ createdAt: 1 });
+            // Calculate conversation-level sentiment
+            const conversationSentiment = calculateConversationSentiment(sentimentCounts);
 
-            const slaInfo = calculateSLAStatus(chatroom, firstUserMessage);
+            // Calculate SLA info - use dummy function if not defined
+            let slaInfo = { status: 'on_time', timeRemaining: '24h' };
+            try {
+                if (typeof calculateSLAStatus === 'function') {
+                    const firstUserMessage = await Message.findOne({
+                        chatroom_id: chatroom._id,
+                        message_type: 'user'
+                    }).sort({ createdAt: 1 });
+                    slaInfo = calculateSLAStatus(chatroom, firstUserMessage);
+                }
+            } catch (slaError) {
+                console.log('[SLA] Function not available, using default');
+            }
 
             return {
                 ...chatroom.toObject(),
                 latestIntent,
                 latestSentiment,
                 sentimentCounts,
+                conversationSentiment,
                 totalMessages: messages.length,
                 aiAnalyzedMessages: userMessages.length,
                 slaInfo
@@ -608,6 +811,7 @@ app.get('/', requireAuth, async (req, res) => {
         const aiResponseRate = totalUserMessages > 0 ?
             Math.round((totalBotResponses / totalUserMessages) * 100) : 0;
 
+        console.log(`[DASHBOARD] Rendering with ${chatroomsWithInsights.length} chatrooms`);
         res.render('chatrooms', {
             chatrooms: chatroomsWithInsights,
             analytics,
@@ -617,7 +821,8 @@ app.get('/', requireAuth, async (req, res) => {
             totalBotResponses
         });
     } catch (error) {
-        res.status(500).send('Error loading chatrooms');
+        console.error('[DASHBOARD] Error:', error);
+        res.status(500).send('Error loading chatrooms: ' + error.message);
     }
 });
 
@@ -646,6 +851,9 @@ app.get('/conversations', requireAuth, async (req, res) => {
                 negative: userMessages.filter(m => m.sentiment === 'negative').length
             };
 
+            // Calculate conversation-level sentiment
+            const conversationSentiment = calculateConversationSentiment(sentimentCounts);
+
             // Calculate SLA info
             const firstUserMessage = await Message.findOne({
                 chatroom_id: chatroom._id,
@@ -659,6 +867,7 @@ app.get('/conversations', requireAuth, async (req, res) => {
                 latestIntent,
                 latestSentiment,
                 sentimentCounts,
+                conversationSentiment,
                 totalMessages: messages.length,
                 aiAnalyzedMessages: userMessages.length,
                 slaInfo
@@ -717,6 +926,11 @@ app.get('/chatroom/:id', requireAuth, async (req, res) => {
                 neutral: aiAnalyzedMessages.filter(m => m.sentiment === 'neutral').length,
                 negative: aiAnalyzedMessages.filter(m => m.sentiment === 'negative').length
             },
+            conversationSentiment: calculateConversationSentiment({
+                positive: aiAnalyzedMessages.filter(m => m.sentiment === 'positive').length,
+                neutral: aiAnalyzedMessages.filter(m => m.sentiment === 'neutral').length,
+                negative: aiAnalyzedMessages.filter(m => m.sentiment === 'negative').length
+            }),
             slaInfo
         };
 
@@ -899,137 +1113,23 @@ app.get('/admin/logout', (req, res) => {
     res.redirect('/admin/login');
 });
 
+const AdminController = require('./controllers/AdminController');
+
 // Admin Routes (Protected)
-
-// Admin Dashboard
-app.get('/admin', requireAdmin, async (req, res) => {
-    try {
-        const totalVendors = await Vendor.countDocuments({});
-        const totalChatrooms = await Chatroom.countDocuments({});
-        const totalMessages = await Message.countDocuments({});
-        const activeSubscriptions = await Vendor.countDocuments({ subscription_status: 'active' });
-
-        res.render('admin/dashboard', {
-            currentPage: 'admin',
-            stats: { totalVendors, totalChatrooms, totalMessages, activeSubscriptions }
-        });
-    } catch (error) {
-        console.error('Admin dashboard error:', error);
-        res.status(500).send('Error loading admin dashboard');
-    }
-});
-
-// Vendor List
-app.get('/admin/vendors', requireAdmin, async (req, res) => {
-    try {
-        const vendors = await Vendor.find({}).sort({ createdAt: -1 }).lean();
-        res.render('admin/vendors', { currentPage: 'admin', vendors });
-    } catch (error) {
-        console.error('Admin vendors list error:', error);
-        res.status(500).send('Error loading vendors');
-    }
-});
-
-// Vendor Create Form
-app.get('/admin/vendors/create', requireAdmin, (req, res) => {
-    res.render('admin/vendor-create', { currentPage: 'admin', error: null });
-});
-
-// Vendor Create Handler
-app.post('/admin/vendors/create', requireAdmin, async (req, res) => {
-    try {
-        const { company_name, email, phone, password, subscription_plan } = req.body;
-        const existing = await Vendor.findOne({ email: email.toLowerCase() });
-        if (existing) return res.render('admin/vendor-create', { currentPage: 'admin', error: 'Email already exists' });
-
-        const vendorId = generateVendorId();
-        const vendor = new Vendor({
-            vendor_id: vendorId,
-            email: email.toLowerCase(),
-            company_name,
-            phone,
-            password,
-            subscription_plan: subscription_plan || 'basic'
-        });
-
-        await vendor.save();
-
-        // Create default agent context for vendor
-        await saveAgentContext(
-            vendorId,
-            parseInt(vendorId.replace('VND', ''), 36),
-            1,
-            `${company_name} Support Agent`,
-            `You are ${company_name} WhatsApp assistant. CRITICAL: Always respond in the SAME LANGUAGE the user is speaking.`,
-            'admin'
-        );
-
-        res.redirect('/admin/vendors');
-    } catch (error) {
-        console.error('Admin create vendor error:', error);
-        res.render('admin/vendor-create', { currentPage: 'admin', error: 'Failed to create vendor' });
-    }
-});
-
-// Vendor Detail
-app.get('/admin/vendors/:vendorId', requireAdmin, async (req, res) => {
-    try {
-        const vendor = await Vendor.findOne({ vendor_id: req.params.vendorId }).lean();
-        if (!vendor) return res.status(404).send('Vendor not found');
-
-        const chatroomCount = await Chatroom.countDocuments({ vendor_id: vendor.vendor_id });
-        const messageCount = await Message.countDocuments({ vendor_id: vendor.vendor_id });
-        const pricing = await Pricing.findOne({ vendor_id: vendor.vendor_id }).lean() || {};
-
-        res.render('admin/vendor-detail', { currentPage: 'admin', vendor, chatroomCount, messageCount, pricing });
-    } catch (error) {
-        console.error('Admin vendor detail error:', error);
-        res.status(500).send('Error loading vendor');
-    }
-});
-
-// Toggle vendor active status
-app.post('/admin/vendors/:vendorId/toggle', requireAdmin, async (req, res) => {
-    try {
-        const vendor = await Vendor.findOne({ vendor_id: req.params.vendorId });
-        if (!vendor) return res.status(404).send('Vendor not found');
-        vendor.is_active = !vendor.is_active;
-        await vendor.save();
-        res.json({ success: true, is_active: vendor.is_active });
-    } catch (error) {
-        console.error('Admin vendor toggle error:', error);
-        res.status(500).json({ error: 'Failed to update vendor' });
-    }
-});
-
-// Pricing Settings (global)
-app.get('/admin/pricing', requireAdmin, async (req, res) => {
-    try {
-        let pricing = await Pricing.findOne({ vendor_id: 'SYSTEM' }).lean();
-        if (!pricing) {
-            pricing = { text_cost: 0, audio_cost: 0, image_cost: 0, markup_percentage: 0 };
-        }
-        res.render('admin/pricing', { currentPage: 'admin', pricing });
-    } catch (error) {
-        console.error('Admin pricing error:', error);
-        res.status(500).send('Error loading pricing');
-    }
-});
-
-app.post('/admin/pricing', requireAdmin, async (req, res) => {
-    try {
-        const { text_cost, audio_cost, image_cost, markup_percentage } = req.body;
-        await Pricing.findOneAndUpdate(
-            { vendor_id: 'SYSTEM' },
-            { text_cost, audio_cost, image_cost, markup_percentage },
-            { upsert: true }
-        );
-        res.redirect('/admin/pricing');
-    } catch (error) {
-        console.error('Admin pricing update error:', error);
-        res.status(500).send('Failed to update pricing');
-    }
-});
+app.get('/admin', requireAdmin, AdminController.dashboard);
+app.get('/admin/vendors', requireAdmin, AdminController.vendorList);
+app.get('/admin/vendors/create', requireAdmin, AdminController.vendorCreate);
+app.post('/admin/vendors/create', requireAdmin, AdminController.vendorStore);
+app.get('/admin/vendors/:vendorId', requireAdmin, AdminController.vendorDetail);
+app.post('/admin/vendors/:vendorId/toggle', requireAdmin, AdminController.vendorToggle);
+app.get('/admin/wallet', requireAdmin, AdminController.walletManagement);
+app.post('/admin/wallet/topup', requireAdmin, AdminController.walletTopup);
+app.get('/admin/topup-history', requireAdmin, AdminController.topupHistory);
+app.get('/admin/billing-history', requireAdmin, AdminController.billingHistory);
+app.get('/admin/pricing-config', requireAdmin, AdminController.pricingConfig);
+app.post('/admin/pricing/exchange-rate', requireAdmin, AdminController.updateExchangeRate);
+app.post('/admin/pricing/global', requireAdmin, AdminController.updateGlobalPricing);
+app.post('/admin/pricing/default-markup', requireAdmin, AdminController.updateDefaultMarkup);
 
 // Feedback Route (Protected)
 app.get('/feedback', requireAuth, (req, res) => {
@@ -1039,6 +1139,224 @@ app.get('/feedback', requireAuth, (req, res) => {
 // Billing Route (Protected)
 app.get('/billing', requireAuth, (req, res) => {
     res.render('billing-new', { currentPage: 'billing' });
+});
+
+// Wallet Route (Protected)
+app.get('/wallet', requireAuth, async (req, res) => {
+    try {
+        const { VendorWallet, ExchangeRate, WalletTransaction, UsageRecord } = require('./models/database');
+        
+        // Get wallet information
+        let wallet = await VendorWallet.findOne({ vendor_id: req.vendorId });
+        if (!wallet) {
+            wallet = new VendorWallet({ vendor_id: req.vendorId });
+            await wallet.save();
+        }
+        
+        // Get exchange rate
+        let exchangeRate = await ExchangeRate.findOne({ from_currency: 'INR', to_currency: 'USD' });
+        if (!exchangeRate) {
+            exchangeRate = new ExchangeRate({ rate: 83.0 });
+            await exchangeRate.save();
+        }
+        
+        // Get recent transactions (last 10)
+        const transactions = await WalletTransaction.find({ vendor_id: req.vendorId })
+            .sort({ createdAt: -1 })
+            .limit(10);
+            
+        // Get usage statistics
+        const totalMessages = await Message.countDocuments({ vendor_id: req.vendorId });
+        const usageRecords = await UsageRecord.find({ vendor_id: req.vendorId });
+        const totalSpentUSD = usageRecords.reduce((sum, record) => sum + record.final_cost_usd_micro, 0) / 1000000;
+        const totalSpentINR = totalSpentUSD * exchangeRate.rate;
+        const avgCostINR = totalMessages > 0 ? totalSpentINR / totalMessages : 0;
+        
+        // Get usage summary by service (last 30 days)
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        const recentUsage = await UsageRecord.find({ 
+            vendor_id: req.vendorId,
+            charged_at: { $gte: thirtyDaysAgo }
+        });
+        
+        const usageSummary = {};
+        recentUsage.forEach(record => {
+            record.services_used.forEach(service => {
+                if (!usageSummary[service.service_type]) {
+                    usageSummary[service.service_type] = { count: 0, total_cost: 0 };
+                }
+                usageSummary[service.service_type].count++;
+                usageSummary[service.service_type].total_cost += service.base_cost_usd_micro / 1000000;
+            });
+        });
+        
+        const usageSummaryArray = Object.keys(usageSummary).map(key => ({
+            service_type: key,
+            count: usageSummary[key].count,
+            total_cost: usageSummary[key].total_cost
+        }));
+        
+        res.render('wallet', {
+            title: 'Wallet',
+            wallet,
+            exchangeRate,
+            transactions,
+            totalMessages,
+            totalSpentINR,
+            avgCostINR,
+            usageSummary: usageSummaryArray,
+            currentPage: 'wallet'
+        });
+    } catch (error) {
+        console.error('Wallet page error:', error);
+        res.status(500).send('Error loading wallet');
+    }
+});
+
+// Billings Management Panel (Protected)
+app.get('/billings', requireAuth, async (req, res) => {
+    try {
+        const { PricingConfig, VendorWallet, UsageRecord, ExchangeRate } = require('./models/database');
+
+        // Get pricing configuration
+        let pricing = await PricingConfig.findOne({ vendor_id: req.vendorId });
+        if (!pricing) {
+            pricing = new PricingConfig({ vendor_id: req.vendorId });
+            await pricing.save();
+        }
+
+        // Get wallet information
+        let wallet = await VendorWallet.findOne({ vendor_id: req.vendorId });
+        if (!wallet) {
+            wallet = new VendorWallet({ vendor_id: req.vendorId });
+            await wallet.save();
+        }
+
+        // Get exchange rate
+        let exchangeRate = await ExchangeRate.findOne({ from_currency: 'INR', to_currency: 'USD' });
+        if (!exchangeRate) {
+            exchangeRate = new ExchangeRate({ rate: 93.0 }); // Default rate
+            await exchangeRate.save();
+        }
+
+        // Get usage analytics
+        const usageRecords = await UsageRecord.find({ vendor_id: req.vendorId })
+            .sort({ charged_at: -1 })
+            .limit(20);
+
+        const totalMessages = await Message.countDocuments({ vendor_id: req.vendorId });
+        const totalSpent = usageRecords.reduce((sum, record) => sum + record.final_cost_usd_micro, 0);
+        const avgCostPerMessage = totalMessages > 0 ? (totalSpent / totalMessages / 1000000).toFixed(6) : '0.000000';
+        const activeConversations = await Chatroom.countDocuments({
+            vendor_id: req.vendorId,
+            updatedAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+        });
+
+        const analytics = {
+            totalMessages,
+            totalSpent,
+            avgCostPerMessage,
+            activeConversations
+        };
+
+        res.render('billings', {
+            title: 'Billing Management',
+            pricing,
+            wallet,
+            exchangeRate,
+            analytics,
+            usageRecords,
+            currentPage: 'billings'
+        });
+    } catch (error) {
+        console.error('Billings panel error:', error);
+        res.status(500).send('Error loading billings panel');
+    }
+});
+
+// Update pricing configuration
+app.post('/billings/pricing', requireAuth, async (req, res) => {
+    try {
+        const { PricingConfig } = require('./models/database');
+        const { new_user_4h_markup, existing_user_20h_markup, existing_user_24h_markup } = req.body;
+
+        await PricingConfig.findOneAndUpdate(
+            { vendor_id: req.vendorId },
+            {
+                new_user_4h_markup: parseInt(new_user_4h_markup),
+                existing_user_20h_markup: parseInt(existing_user_20h_markup),
+                existing_user_24h_markup: parseInt(existing_user_24h_markup)
+            },
+            { upsert: true }
+        );
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Pricing update error:', error);
+        res.status(500).json({ error: 'Failed to update pricing' });
+    }
+});
+
+// Add balance to wallet
+app.post('/wallet/add-balance', requireAuth, async (req, res) => {
+    try {
+        const { VendorWallet, ExchangeRate, WalletTransaction } = require('./models/database');
+        const { amountINR } = req.body;
+
+        if (!amountINR || amountINR <= 0) {
+            return res.status(400).json({ error: 'Invalid amount' });
+        }
+
+        // Get current exchange rate
+        const exchangeRate = await ExchangeRate.findOne({ from_currency: 'INR', to_currency: 'USD' });
+        if (!exchangeRate) {
+            return res.status(400).json({ error: 'Exchange rate not found' });
+        }
+
+        // Convert INR to USD micro-dollars
+        const amountUSD = amountINR / exchangeRate.rate;
+        const amountMicro = Math.round(amountUSD * 1000000);
+
+        // Update wallet balance
+        await VendorWallet.findOneAndUpdate(
+            { vendor_id: req.vendorId },
+            {
+                $inc: { balance_usd_micro: amountMicro },
+                last_updated: new Date()
+            },
+            { upsert: true }
+        );
+
+        // Record transaction
+        await new WalletTransaction({
+            vendor_id: req.vendorId,
+            transaction_type: 'credit',
+            amount_inr: amountINR,
+            amount_usd_micro: amountMicro,
+            exchange_rate: exchangeRate.rate,
+            description: `Wallet top-up of ₹${amountINR}`,
+            added_by: req.vendor?.email || 'user'
+        }).save();
+
+        res.json({ success: true, message: 'Balance added successfully' });
+    } catch (error) {
+        console.error('Add balance error:', error);
+        res.status(500).json({ error: 'Failed to add balance' });
+    }
+});
+
+// Get wallet transactions
+app.get('/wallet/transactions', requireAuth, async (req, res) => {
+    try {
+        const { WalletTransaction } = require('./models/database');
+        const transactions = await WalletTransaction.find({ vendor_id: req.vendorId })
+            .sort({ createdAt: -1 })
+            .limit(50);
+        res.json(transactions);
+    } catch (error) {
+        console.error('Transaction history error:', error);
+        res.status(500).json({ error: 'Failed to load transactions' });
+    }
 });
 
 // Settings Route (Protected)

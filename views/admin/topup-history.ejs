@@ -1,0 +1,126 @@
+<%- include('./partials/layout-header', { title: 'Top-up History', currentPage: 'admin' }) %>
+
+<div class="content-header">
+    <h1><i class="fas fa-plus-circle"></i> Top-up History</h1>
+    <p>All vendor wallet top-ups and credits</p>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>Recent Top-ups</h3>
+        <div class="muted">Latest wallet credits across all vendors</div>
+    </div>
+    <div class="card-content">
+        <% if (topups.length > 0) { %>
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Vendor</th>
+                            <th>Amount (INR)</th>
+                            <th>Amount (USD)</th>
+                            <th>Exchange Rate</th>
+                            <th>Added By</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% topups.forEach(topup => { %>
+                            <tr>
+                                <td><%= new Date(topup.createdAt).toLocaleDateString() %></td>
+                                <td>
+                                    <div class="vendor-info">
+                                        <strong><%= topup.vendor?.company_name || 'Unknown' %></strong>
+                                        <div class="muted"><%= topup.vendor_id %></div>
+                                    </div>
+                                </td>
+                                <td class="amount">₹<%= topup.amount_inr.toLocaleString() %></td>
+                                <td class="amount">$<%= (topup.amount_usd_micro / 1000000).toFixed(4) %></td>
+                                <td>₹<%= topup.exchange_rate %></td>
+                                <td><%= topup.added_by %></td>
+                                <td><%= topup.description || 'Admin top-up' %></td>
+                            </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+            </div>
+        <% } else { %>
+            <div class="empty-state">
+                <i class="fas fa-plus-circle"></i>
+                <h3>No Top-ups Found</h3>
+                <p>No wallet top-ups have been recorded yet.</p>
+            </div>
+        <% } %>
+    </div>
+</div>
+
+<style>
+.table-responsive {
+    overflow-x: auto;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+.data-table th,
+.data-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.data-table th {
+    background: var(--background-color);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.vendor-info strong {
+    display: block;
+    color: var(--text-primary);
+}
+
+.vendor-info .muted {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.amount {
+    font-weight: 600;
+    color: var(--success-color);
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: var(--text-muted);
+}
+
+.empty-state i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    color: var(--primary-light);
+}
+
+.empty-state h3 {
+    margin: 0 0 0.5rem 0;
+    color: var(--text-secondary);
+}
+
+@media (max-width: 768px) {
+    .data-table {
+        font-size: 0.9rem;
+    }
+    
+    .data-table th,
+    .data-table td {
+        padding: 0.5rem;
+    }
+}
+</style>
+
+<%- include('partials/layout-footer') %>

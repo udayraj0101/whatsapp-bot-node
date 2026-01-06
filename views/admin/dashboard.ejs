@@ -1,74 +1,229 @@
 <%- include('./partials/layout-header', { title: 'Admin Dashboard', currentPage: 'admin' }) %>
 
 <div class="content-header">
-    <h1><i class="fas fa-chart-line"></i> Admin Dashboard</h1>
+    <h1><i class="fas fa-tachometer-alt"></i> Admin Dashboard</h1>
     <p>System overview and key metrics</p>
 </div>
 
-<div class="card-grid">
-    <div class="card">
-        <div class="card-header">
-            <h3>Total Vendors</h3>
-            <div class="muted">All accounts</div>
+<div class="dashboard-grid">
+    <!-- System Stats -->
+    <div class="stats-row">
+        <div class="card stat-card">
+            <div class="stat-content">
+                <div class="stat-icon">
+                    <i class="fas fa-building"></i>
+                </div>
+                <div class="stat-info">
+                    <h3><%= stats.totalVendors %></h3>
+                    <p>Total Vendors</p>
+                </div>
+            </div>
         </div>
-        <div class="card-content">
-            <div class="stat-number"><%= stats.totalVendors %></div>
-            <div class="stat-sub">Registered vendors</div>
+        
+        <div class="card stat-card">
+            <div class="stat-content">
+                <div class="stat-icon">
+                    <i class="fas fa-comments"></i>
+                </div>
+                <div class="stat-info">
+                    <h3><%= stats.totalChatrooms %></h3>
+                    <p>Active Conversations</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card stat-card">
+            <div class="stat-content">
+                <div class="stat-icon">
+                    <i class="fas fa-envelope"></i>
+                </div>
+                <div class="stat-info">
+                    <h3><%= stats.totalMessages %></h3>
+                    <p>Total Messages</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card stat-card">
+            <div class="stat-content">
+                <div class="stat-icon">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="stat-info">
+                    <h3><%= stats.activeVendors %></h3>
+                    <p>Active Vendors</p>
+                </div>
+            </div>
         </div>
     </div>
 
-    <div class="card">
-        <div class="card-header">
-            <h3>Active Conversations</h3>
-            <div class="muted">Total chatrooms</div>
-        </div>
-        <div class="card-content">
-            <div class="stat-number"><%= stats.totalChatrooms %></div>
-            <div class="stat-sub">Open & closed</div>
+    <!-- Financial Overview -->
+    <div class="financial-row">
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-chart-line"></i> Financial Overview</h3>
+            </div>
+            <div class="card-content">
+                <div class="financial-stats">
+                    <div class="financial-item">
+                        <span class="label">Total Wallet Balance</span>
+                        <span class="value">$<%= stats.totalBalance.toFixed(2) %></span>
+                    </div>
+                    <div class="financial-item">
+                        <span class="label">Total Top-ups (INR)</span>
+                        <span class="value">₹<%= stats.totalTopups.toLocaleString() %></span>
+                    </div>
+                    <div class="financial-item">
+                        <span class="label">Total Billing (INR)</span>
+                        <span class="value">₹<%= stats.totalBilling.toFixed(2) %></span>
+                    </div>
+                    <div class="financial-item">
+                        <span class="label">Exchange Rate</span>
+                        <span class="value">₹<%= stats.exchangeRate %>/USD</span>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <div class="card">
-        <div class="card-header">
-            <h3>Total Messages</h3>
-            <div class="muted">All vendors combined</div>
-        </div>
-        <div class="card-content">
-            <div class="stat-number"><%= stats.totalMessages %></div>
-            <div class="stat-sub">Text, audio, media</div>
-        </div>
-    </div>
-
-    <div class="card">
-        <div class="card-header">
-            <h3>Active Subscriptions</h3>
-            <div class="muted">Paid plans</div>
-        </div>
-        <div class="card-content">
-            <div class="stat-number"><%= stats.activeSubscriptions %></div>
-            <div class="stat-sub">Current</div>
+    <!-- Quick Actions -->
+    <div class="actions-row">
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-bolt"></i> Quick Actions</h3>
+            </div>
+            <div class="card-content">
+                <div class="action-buttons">
+                    <a href="/admin/vendors/create" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add Vendor
+                    </a>
+                    <a href="/admin/wallet" class="btn btn-secondary">
+                        <i class="fas fa-wallet"></i> Manage Wallets
+                    </a>
+                    <a href="/admin/pricing-config" class="btn btn-secondary">
+                        <i class="fas fa-cog"></i> Configure Pricing
+                    </a>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
-<div class="card" style="margin-top:2rem;">
-    <div class="card-header">
-        <h3><i class="fas fa-bolt" style="color:var(--primary-color);"></i> Quick Actions</h3>
-        <div class="muted">Common admin tasks</div>
-    </div>
-    <div class="card-content">
-        <div class="btn-group">
-            <a href="/admin/vendors/create" class="btn btn-primary">
-                <i class="fas fa-plus"></i> Create Vendor
-            </a>
-            <a href="/admin/vendors" class="btn">
-                <i class="fas fa-list"></i> Manage Vendors
-            </a>
-            <a href="/admin/pricing" class="btn">
-                <i class="fas fa-sliders-h"></i> Pricing Settings
-            </a>
-        </div>
-    </div>
-</div>
+<style>
+.dashboard-grid {
+    display: grid;
+    gap: 2rem;
+}
+
+.stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+}
+
+.stat-card {
+    padding: 0;
+}
+
+.stat-content {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.5rem;
+}
+
+.stat-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    background: var(--primary-color);
+    color: white;
+}
+
+.stat-info h3 {
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--text-primary);
+}
+
+.stat-info p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.financial-stats {
+    display: grid;
+    gap: 1rem;
+}
+
+.financial-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: var(--background-color);
+    border-radius: 8px;
+}
+
+.financial-item .label {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.financial-item .value {
+    font-weight: 700;
+    color: var(--primary-color);
+    font-size: 1.1rem;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: var(--primary-color);
+    color: white;
+}
+
+.btn-secondary {
+    background: var(--background-color);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+@media (max-width: 768px) {
+    .stats-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+    }
+}
+</style>
 
 <%- include('partials/layout-footer') %>

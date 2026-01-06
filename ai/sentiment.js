@@ -34,19 +34,21 @@ Respond with only one word: positive, neutral, or negative`;
         });
 
         const sentiment = response.data.choices[0].message.content.trim().toLowerCase();
+        const tokenUsage = response.data.usage; // Extract token usage
         
         // Validate response
         const validSentiments = ['positive', 'neutral', 'negative'];
         if (validSentiments.includes(sentiment)) {
             console.log(`Sentiment detected: ${sentiment} for message: ${messageContent.substring(0, 50)}...`);
-            return sentiment;
+            console.log(`Token usage:`, tokenUsage);
+            return { sentiment, tokenUsage };
         } else {
             console.log(`Invalid sentiment response: ${sentiment}, defaulting to neutral`);
-            return 'neutral';
+            return { sentiment: 'neutral', tokenUsage };
         }
     } catch (error) {
         console.error('Sentiment analysis error:', error.message);
-        return 'neutral'; // Default fallback
+        return { sentiment: 'neutral', tokenUsage: null }; // Default fallback
     }
 }
 

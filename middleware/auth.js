@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
-const { Vendor, AdminUser } = require('../models/database');
+const { Vendor } = require('../models/database');
+const AdminUser = require('../models/admin');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 

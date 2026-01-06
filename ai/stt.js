@@ -17,10 +17,24 @@ async function transcribeAudio(audioFilePath) {
             }
         });
 
-        return response.data.text;
+        console.log('STT API Response:', response.data); // Log full response to see available fields
+        
+        // Get file stats for duration calculation
+        const stats = fs.statSync(audioFilePath);
+        const fileSizeBytes = stats.size;
+        
+        // Extract duration from usage if available
+        const duration = response.data.usage?.seconds || null;
+        
+        return {
+            text: response.data.text,
+            fileSizeBytes,
+            duration, // Duration in seconds from OpenAI
+            usage: response.data.usage // Full usage object
+        };
     } catch (error) {
         console.error('STT Error:', error.message);
-        return null;
+        return { text: null, fileSizeBytes: 0, duration: null, usage: null };
     }
 }
 

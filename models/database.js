@@ -12,36 +12,23 @@ const connectDB = async () => {
     }
 };
 
-// Vendor Schema (Updated for SaaS)
+// Vendor Schema
 const vendorSchema = new mongoose.Schema({
     vendor_id: { type: String, unique: true, required: true },
     email: { type: String, unique: true, required: true },
     password: { type: String, required: true },
     company_name: { type: String, required: true },
     phone: { type: String },
-    subscription_plan: { type: String, enum: ['free', 'basic', 'premium'], default: 'free' },
-    subscription_status: { type: String, enum: ['active', 'cancelled', 'suspended'], default: 'active' },
-    whatsapp_phone_id: { type: String, required: true },
+    whatsapp_phone_id: { type: String },
     whatsapp_access_token: { type: String },
-    is_active: { type: Boolean, default: true },
-    // System admin flag to control access to admin panel
-    is_system_admin: { type: Boolean, default: false }
+    business_id: { type: Number, default: 1 }, // Default business_id for SaaS
+    agent_id: { type: Number, default: 1 }, // Default agent_id
+    is_active: { type: Boolean, default: true }
 }, {
     timestamps: true
 });
 
-// Pricing Schema for vendor-specific costs
-const pricingSchema = new mongoose.Schema({
-    vendor_id: { type: String, required: true, unique: true },
-    text_cost: { type: Number, default: 0 },
-    audio_cost: { type: Number, default: 0 },
-    image_cost: { type: Number, default: 0 },
-    markup_percentage: { type: Number, default: 0 }
-}, {
-    timestamps: true
-});
 
-const Pricing = mongoose.model('Pricing', pricingSchema);
 
 // Hash password before saving
 vendorSchema.pre('save', async function(next) {
@@ -60,7 +47,7 @@ const chatroomSchema = new mongoose.Schema({
     vendor_id: { type: String, required: true },
     business_id: { type: Number, required: true },
     agent_id: { type: Number, required: true },
-    thread_id: { type: String, required: true, unique: true },
+    thread_id: { type: String, required: true },
     phone_number: { type: String, required: true },
     // MVP: SLA Management & Tagging
     status: { type: String, enum: ['new', 'pending', 'overdue', 'closed'], default: 'new' },
@@ -69,6 +56,9 @@ const chatroomSchema = new mongoose.Schema({
 }, {
     timestamps: true
 });
+
+// Compound unique index for vendor_id + thread_id
+chatroomSchema.index({ vendor_id: 1, thread_id: 1 }, { unique: true });
 
 // Message Schema (Updated)
 const messageSchema = new mongoose.Schema({
@@ -102,27 +92,122 @@ const agentContextSchema = new mongoose.Schema({
     timestamps: true
 });
 
-// MVP: Billing Record Schema (Updated)
-const billingRecordSchema = new mongoose.Schema({
+// Conversation Window Tracking Schema
+const conversationWindowSchema = new mongoose.Schema({
     vendor_id: { type: String, required: true },
-    chatroom_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Chatroom', required: true },
-    interaction_type: { type: String, enum: ['text', 'audio', 'image'], required: true },
-    pricing_case: { type: String, enum: ['new_user_4h', 'new_user_20h', 'existing_user'], required: true },
-    base_cost: { type: Number, required: true },
-    markup_percentage: { type: Number, default: 0 },
-    final_cost: { type: Number, required: true }
+    phone_number: { type: String, required: true },
+    first_message_at: { type: Date, required: true },
+    last_message_at: { type: Date, required: true },
+    current_window: { 
+        type: String, 
+        enum: ['new_user_4h', 'existing_user_20h', 'existing_user_24h+'], 
+        required: true 
+    },
+    window_expires_at: { type: Date }
 }, {
     timestamps: true
 });
+
+// Pricing Configuration Schema
+const pricingConfigSchema = new mongoose.Schema({
+    vendor_id: { type: String, required: true, unique: true },
+    // Time-based markup percentages
+    new_user_4h_markup: { type: Number, default: 50 }, // 50%
+    existing_user_20h_markup: { type: Number, default: 30 }, // 30%
+    existing_user_24h_markup: { type: Number, default: 20 }, // 20%
+    // Base AI service costs (USD)
+    gpt4_mini_input_price: { type: Number, default: 0.00015 }, // per 1K tokens
+    gpt4_mini_output_price: { type: Number, default: 0.0006 }, // per 1K tokens
+    whisper_price_per_minute: { type: Number, default: 0.006 } // per minute
+}, {
+    timestamps: true
+});
+
+// Vendor Wallet Schema
+const vendorWalletSchema = new mongoose.Schema({
+    vendor_id: { type: String, required: true, unique: true },
+    balance_usd_micro: { type: Number, default: 0 }, // Stored in micro-dollars (1/1,000,000) for precision
+    last_updated: { type: Date, default: Date.now }
+}, {
+    timestamps: true
+});
+
+// Usage Record Schema
+const usageRecordSchema = new mongoose.Schema({
+    vendor_id: { type: String, required: true },
+    phone_number: { type: String, required: true },
+    message_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Message' },
+    conversation_window: { 
+        type: String, 
+        enum: ['new_user_4h', 'existing_user_20h', 'existing_user_24h+'], 
+        required: true 
+    },
+    
+    // AI Service Usage
+    services_used: [{
+        service_type: { 
+            type: String, 
+            enum: ['sentiment', 'intent', 'vision', 'stt', 'agent_process'], 
+            required: true 
+        },
+        model_name: { type: String, required: true },
+        prompt_tokens: { type: Number, default: 0 },
+        completion_tokens: { type: Number, default: 0 },
+        total_tokens: { type: Number, default: 0 },
+        duration_seconds: { type: Number, default: 0 },
+        base_cost_usd_micro: { type: Number, required: true }
+    }],
+    
+    // Billing Calculation
+    total_base_cost_usd_micro: { type: Number, required: true },
+    markup_percentage: { type: Number, required: true },
+    markup_amount_usd_micro: { type: Number, required: true },
+    final_cost_usd_micro: { type: Number, required: true },
+    
+    charged_at: { type: Date, default: Date.now }
+}, {
+    timestamps: true
+});
+
+// Exchange Rate Schema
+const exchangeRateSchema = new mongoose.Schema({
+    from_currency: { type: String, required: true, default: 'INR' },
+    to_currency: { type: String, required: true, default: 'USD' },
+    rate: { type: Number, required: true }, // 1 USD = X INR
+    updated_at: { type: Date, default: Date.now },
+    updated_by: { type: String, default: 'system' }
+}, {
+    timestamps: true
+});
+
+// Wallet Transaction Schema
+const walletTransactionSchema = new mongoose.Schema({
+    vendor_id: { type: String, required: true },
+    transaction_type: { type: String, enum: ['credit', 'debit'], required: true },
+    amount_inr: { type: Number, required: true }, // Amount in INR
+    amount_usd_micro: { type: Number, required: true }, // Amount in micro-dollars
+    exchange_rate: { type: Number, required: true }, // Rate used for conversion
+    description: { type: String, required: true },
+    added_by: { type: String, required: true }, // Admin who added
+    reference_id: { type: String } // For tracking
+}, {
+    timestamps: true
+});
+
+
 
 const Vendor = mongoose.model('Vendor', vendorSchema);
 const Chatroom = mongoose.model('Chatroom', chatroomSchema);
 const Message = mongoose.model('Message', messageSchema);
 const AgentContext = mongoose.model('AgentContext', agentContextSchema);
-const BillingRecord = mongoose.model('BillingRecord', billingRecordSchema);
+const ConversationWindow = mongoose.model('ConversationWindow', conversationWindowSchema);
+const PricingConfig = mongoose.model('PricingConfig', pricingConfigSchema);
+const VendorWallet = mongoose.model('VendorWallet', vendorWalletSchema);
+const UsageRecord = mongoose.model('UsageRecord', usageRecordSchema);
+const ExchangeRate = mongoose.model('ExchangeRate', exchangeRateSchema);
+const WalletTransaction = mongoose.model('WalletTransaction', walletTransactionSchema);
 
-// Export AdminUser model separately to avoid cyclic requires
-const AdminUser = require('./admin');
+
 
 // Create or get chatroom (Updated for multi-tenancy)
 async function createOrGetChatroom(vendorId, businessId, agentId, threadId, phoneNumber) {
@@ -224,9 +309,14 @@ async function saveAgentContext(vendorId, businessId, agentId, name, context, up
     }
 }
 
-// Generate unique vendor ID
+// Generate unique vendor ID and business ID
 function generateVendorId() {
     return 'VND' + Date.now() + Math.random().toString(36).substr(2, 5).toUpperCase();
+}
+
+function generateBusinessId() {
+    // Generate unique business_id based on timestamp
+    return parseInt(Date.now().toString().slice(-8)); // Last 8 digits of timestamp
 }
 
 module.exports = {
@@ -235,13 +325,17 @@ module.exports = {
     Chatroom,
     Message,
     AgentContext,
-    BillingRecord,
-    Pricing,
-    AdminUser,
+    ConversationWindow,
+    PricingConfig,
+    VendorWallet,
+    UsageRecord,
+    ExchangeRate,
+    WalletTransaction,
     createOrGetChatroom,
     saveMessage,
     getChatroomMessages,
     getAgentContext,
     saveAgentContext,
-    generateVendorId
+    generateVendorId,
+    generateBusinessId
 };
