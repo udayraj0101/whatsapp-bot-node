@@ -52,7 +52,14 @@ const chatroomSchema = new mongoose.Schema({
     // MVP: SLA Management & Tagging
     status: { type: String, enum: ['new', 'pending', 'overdue', 'closed'], default: 'new' },
     tags: [{ type: String }],
-    sla_deadline: { type: Date }
+    sla_deadline: { type: Date },
+    // Feedback State Tracking
+    feedback_state: {
+        awaiting_feedback: { type: Boolean, default: false },
+        feedback_request_id: { type: mongoose.Schema.Types.ObjectId, ref: 'FeedbackRequest' },
+        feedback_sent_at: { type: Date },
+        feedback_expires_at: { type: Date }
+    }
 }, {
     timestamps: true
 });
@@ -73,7 +80,19 @@ const messageSchema = new mongoose.Schema({
     // MVP: Conversation Intelligence
     intent: { type: String, enum: ['query', 'complaint', 'need_action', 'feedback'] },
     sentiment: { type: String, enum: ['positive', 'neutral', 'negative'] },
-    summary: { type: String }
+    summary: { type: String },
+    // AI Resolution Analysis
+    resolution_analysis: {
+        resolved: { type: Boolean, default: false },
+        confidence: { type: Number, min: 0, max: 1, default: 0 },
+        reason: { type: String },
+        resolution_type: { 
+            type: String, 
+            enum: ['direct_answer', 'partial_answer', 'escalation_needed', 'information_provided', 'no_resolution'],
+            default: 'no_resolution'
+        },
+        analyzed_at: { type: Date }
+    }
 }, {
     timestamps: true
 });
@@ -147,7 +166,7 @@ const usageRecordSchema = new mongoose.Schema({
     services_used: [{
         service_type: { 
             type: String, 
-            enum: ['sentiment', 'intent', 'vision', 'stt', 'agent_process'], 
+            enum: ['sentiment', 'intent', 'vision', 'stt', 'agent_process', 'resolution_analysis'], 
             required: true 
         },
         model_name: { type: String, required: true },
@@ -209,27 +228,68 @@ const WalletTransaction = mongoose.model('WalletTransaction', walletTransactionS
 
 
 
-// Create or get chatroom (Updated for multi-tenancy)
+// Create or get chatroom (Updated for multi-tenancy with duplicate prevention)
 async function createOrGetChatroom(vendorId, businessId, agentId, threadId, phoneNumber) {
     try {
-        let chatroom = await Chatroom.findOne({ thread_id: threadId, vendor_id: vendorId });
+        // First, try to find existing chatroom
+        let chatroom = await Chatroom.findOne({ 
+            thread_id: threadId, 
+            vendor_id: vendorId 
+        });
         
         if (chatroom) {
+            // Update timestamp and return existing chatroom
             chatroom.updatedAt = new Date();
             await chatroom.save();
+            console.log(`[CHATROOM] Found existing chatroom for ${threadId}`);
             return chatroom;
-        } else {
-            chatroom = new Chatroom({
-                vendor_id: vendorId,
-                business_id: businessId,
-                agent_id: agentId,
-                thread_id: threadId,
-                phone_number: phoneNumber,
-                sla_deadline: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours from now
-            });
-            return await chatroom.save();
         }
+        
+        // Check for duplicates by phone number (cleanup old logic)
+        const duplicates = await Chatroom.find({ 
+            phone_number: phoneNumber, 
+            vendor_id: vendorId 
+        }).sort({ createdAt: -1 });
+        
+        if (duplicates.length > 0) {
+            // Use the most recent chatroom and update its thread_id if needed
+            chatroom = duplicates[0];
+            if (chatroom.thread_id !== threadId) {
+                chatroom.thread_id = threadId;
+                chatroom.updatedAt = new Date();
+                await chatroom.save();
+            }
+            
+            // Remove older duplicates
+            if (duplicates.length > 1) {
+                const oldChatroomIds = duplicates.slice(1).map(c => c._id);
+                await Chatroom.deleteMany({ _id: { $in: oldChatroomIds } });
+                console.log(`[CHATROOM] Cleaned up ${oldChatroomIds.length} duplicate chatrooms for ${phoneNumber}`);
+            }
+            
+            console.log(`[CHATROOM] Reused existing chatroom for ${phoneNumber}`);
+            return chatroom;
+        }
+        
+        // Create new chatroom
+        chatroom = new Chatroom({
+            vendor_id: vendorId,
+            business_id: businessId,
+            agent_id: agentId,
+            thread_id: threadId,
+            phone_number: phoneNumber,
+            sla_deadline: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours from now
+        });
+        
+        const savedChatroom = await chatroom.save();
+        console.log(`[CHATROOM] Created new chatroom for ${phoneNumber}`);
+        return savedChatroom;
     } catch (error) {
+        // Handle duplicate key error gracefully
+        if (error.code === 11000) {
+            console.log(`[CHATROOM] Duplicate key error, fetching existing chatroom for ${threadId}`);
+            return await Chatroom.findOne({ thread_id: threadId, vendor_id: vendorId });
+        }
         throw error;
     }
 }

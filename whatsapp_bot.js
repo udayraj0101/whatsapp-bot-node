@@ -24,6 +24,18 @@ const WHATSAPP_APP_SECRET = process.env.WHATSAPP_APP_SECRET;
 // Initialize billing engine
 const billingEngine = new BillingEngine();
 
+// Initialize feedback processing - Only for 24h timeout
+const { FeedbackService } = require('./models/feedback');
+
+// Check for abandoned conversations every hour (24h timeout)
+setInterval(async () => {
+    try {
+        await FeedbackService.processAbandonedConversations();
+    } catch (error) {
+        console.error('[FEEDBACK] Error processing abandoned conversations:', error);
+    }
+}, 60 * 60 * 1000); // Every hour
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(session({
@@ -409,11 +421,9 @@ async function handleIncomingMessage(message, value, phoneNumberId) {
     await markMessageAsRead(message.id);
 
     try {
-        // Vendor already identified above - no need to query again
-
         // Use vendor-specific business_id and agent_id
-        const businessId = vendor.business_id || 1; // Use vendor's business_id or default to 1
-        const agentId = vendor.agent_id || 1; // Use vendor's agent_id or default to 1
+        const businessId = vendor.business_id || 1;
+        const agentId = vendor.agent_id || 1;
 
         // Create or get chatroom - VENDOR SCOPED
         const chatroom = await createOrGetChatroom(vendor.vendor_id, businessId, agentId, from, from);
@@ -443,7 +453,33 @@ async function handleIncomingMessage(message, value, phoneNumberId) {
             console.log('No agent context found in database, using default context');
         }
 
-        const contextText = agentContextData ? agentContextData.context : `You are ${vendor.company_name} WhatsApp assistant. CRITICAL: Always respond in the SAME LANGUAGE the user is speaking.`;
+        const contextText = agentContextData ? 
+            `SYSTEM INSTRUCTIONS:
+You are an intelligent WhatsApp assistant with access to tools. CRITICAL: Always respond in the SAME LANGUAGE the user is speaking.
+
+TOOL USAGE:
+- When you successfully resolve a user's query, ask for feedback naturally: "How would you rate this experience? 1-5 ⭐"
+- When user provides rating (numbers 1-5, stars, or words like "excellent", "good", "poor"), extract the rating and call submit_feedback tool
+- Continue normal conversation after feedback is submitted
+- Rating examples: "5 stars" = 5, "excellent" = 5, "very good" = 4, "okay" = 3, "bad" = 2, "terrible" = 1
+- You can also use request_feedback tool to send custom feedback messages when appropriate
+
+CUSTOM BUSINESS CONTEXT:
+${agentContextData.context}
+
+Remember: Use tools when needed, ask for feedback after resolving queries, and maintain natural conversation flow.` 
+            : 
+            `SYSTEM INSTRUCTIONS:
+You are ${vendor.company_name} WhatsApp assistant with access to tools. CRITICAL: Always respond in the SAME LANGUAGE the user is speaking.
+
+TOOL USAGE:
+- When you successfully resolve a user's query, ask for feedback naturally: "How would you rate this experience? 1-5 ⭐"
+- When user provides rating (numbers 1-5, stars, or words like "excellent", "good", "poor"), extract the rating and call submit_feedback tool
+- Continue normal conversation after feedback is submitted
+- Rating examples: "5 stars" = 5, "excellent" = 5, "very good" = 4, "okay" = 3, "bad" = 2, "terrible" = 1
+
+DEFAULT BUSINESS CONTEXT:
+You are ${vendor.company_name} customer support assistant. Help customers with their queries professionally and efficiently. Always ask for feedback after resolving issues.`;
 
         const agentRequest = {
             business_id: businessId,
@@ -451,7 +487,23 @@ async function handleIncomingMessage(message, value, phoneNumberId) {
             thread_id: from,
             user_message: messageText,
             context: contextText,
-            tools: []
+            tools: [
+                {
+                    name: "submit_feedback",
+                    description: "Submit user feedback rating when user provides rating or feedback",
+                    parameters: {
+                        rating: "number 1-5",
+                        feedback_text: "original user message"
+                    }
+                },
+                {
+                    name: "request_feedback",
+                    description: "Send feedback request to user when query is resolved",
+                    parameters: {
+                        message: "feedback request message to send"
+                    }
+                }
+            ]
         };
 
         console.log(`[MESSAGE_LIFECYCLE] PROCESSING - Vendor: ${vendor.vendor_id}, From: ${from}`);
@@ -476,11 +528,45 @@ async function handleIncomingMessage(message, value, phoneNumberId) {
         await sendMessage(from, response.data.ai_response);
         console.log(`[MESSAGE_LIFECYCLE] RESPONDED - Vendor: ${vendor.vendor_id}, From: ${from}, Response: ${response.data.ai_response}`);
 
-        // Save bot response - VENDOR SCOPED
-        await saveMessage(vendor.vendor_id, chatroom._id, 'bot', response.data.ai_response, from);
+        // Handle tool calls from agent
+        if (response.data.tool_calls) {
+            const { FeedbackAPI } = require('./api/feedback');
+            
+            for (const toolCall of response.data.tool_calls) {
+                if (toolCall.name === 'submit_feedback') {
+                    try {
+                        await FeedbackAPI.submitFeedback(
+                            vendor.vendor_id,
+                            chatroom._id,
+                            from,
+                            toolCall.parameters.rating,
+                            toolCall.parameters.feedback_text
+                        );
+                        console.log(`[FEEDBACK] Agent submitted feedback via tool call`);
+                    } catch (error) {
+                        console.error('[FEEDBACK] Tool call failed:', error);
+                    }
+                } else if (toolCall.name === 'request_feedback') {
+                    try {
+                        await sendMessage(from, toolCall.parameters.message);
+                        console.log(`[FEEDBACK] Agent requested feedback: ${toolCall.parameters.message}`);
+                    } catch (error) {
+                        console.error('[FEEDBACK] Request feedback failed:', error);
+                    }
+                }
+            }
+        }
+
+        // Save bot response - VENDOR SCOPED with resolution analysis
+        const botMessage = await saveMessageWithResolutionAnalysis(vendor.vendor_id, chatroom._id, 'bot', response.data.ai_response, from, messageText);
         console.log(`[DATA_VALIDATION] Bot response saved with vendor_id: ${vendor.vendor_id}`);
 
-        // BILLING: Calculate and charge for AI usage
+        // Add resolution analysis usage to billing if performed
+        if (botMessage.resolutionUsageData) {
+            aiUsageData.push(botMessage.resolutionUsageData);
+        }
+
+        // BILLING: Calculate and charge for AI usagege for AI usage
         try {
             if (aiUsageData.length > 0) {
                 console.log(`[BILLING] Processing billing for ${aiUsageData.length} AI services`);
@@ -523,7 +609,66 @@ async function handleIncomingMessage(message, value, phoneNumberId) {
     }
 }
 
-// Enhanced save message with AI intelligence - VENDOR SCOPED
+// Enhanced save message with resolution analysis for bot responses
+async function saveMessageWithResolutionAnalysis(vendorId, chatroomId, messageType, content, phoneNumber, userMessage = null) {
+    try {
+        let resolutionAnalysis = null;
+        let resolutionUsageData = null;
+
+        // Analyze resolution for bot responses
+        if (messageType === 'bot' && userMessage) {
+            const { analyzeQueryResolution } = require('./ai/resolution');
+            const analysis = await analyzeQueryResolution(userMessage, content).catch(err => {
+                console.log('Resolution analysis failed:', err.message);
+                return { resolved: false, confidence: 0, reason: 'Analysis failed', resolution_type: 'no_resolution', tokenUsage: null };
+            });
+
+            resolutionAnalysis = {
+                resolved: analysis.resolved,
+                confidence: analysis.confidence,
+                reason: analysis.reason,
+                resolution_type: analysis.resolution_type,
+                analyzed_at: new Date()
+            };
+
+            // Collect usage data for billing
+            if (analysis.tokenUsage) {
+                resolutionUsageData = {
+                    service_type: 'resolution_analysis',
+                    model_name: 'gpt-3.5-turbo',
+                    prompt_tokens: analysis.tokenUsage.prompt_tokens || 0,
+                    completion_tokens: analysis.tokenUsage.completion_tokens || 0,
+                    total_tokens: analysis.tokenUsage.total_tokens || 0,
+                    duration_seconds: 0
+                };
+            }
+
+            console.log(`[RESOLUTION] Query resolved: ${analysis.resolved}, Confidence: ${Math.round(analysis.confidence * 100)}%, Type: ${analysis.resolution_type}`);
+        }
+
+        const message = new Message({
+            vendor_id: vendorId,
+            chatroom_id: chatroomId,
+            message_type: messageType,
+            content: content,
+            phone_number: phoneNumber,
+            resolution_analysis: resolutionAnalysis
+        });
+
+        const savedMessage = await message.save();
+        console.log(`[DATA_VALIDATION] Message saved with vendor_id: ${vendorId}${resolutionAnalysis ? ', resolution analyzed' : ''}`);
+
+        // Return message with resolution usage data for billing
+        if (resolutionUsageData) {
+            savedMessage.resolutionUsageData = resolutionUsageData;
+        }
+        
+        return savedMessage;
+    } catch (error) {
+        console.error(`[RESOLUTION] Error saving message with resolution analysis for vendor ${vendorId}:`, error);
+        throw error;
+    }
+}
 async function saveMessageWithAI(vendorId, chatroomId, messageType, content, phoneNumber, mediaType = null, mediaUrl = null, whatsappMessageId = null) {
     try {
         console.log(`[AI_PROCESSING] Starting AI analysis for vendor: ${vendorId}, message_type: ${messageType}`);
@@ -727,8 +872,9 @@ app.get('/', requireAuth, async (req, res) => {
         const chatrooms = await Chatroom.find({ vendor_id: req.vendorId }).sort({ updatedAt: -1 });
         console.log(`[DASHBOARD] Found ${chatrooms.length} chatrooms`);
 
-        // Calculate AI Response Rate
-        let totalUserMessages = 0;
+        // Calculate AI Resolution Rate (not just response rate)
+        let totalUserQueries = 0;
+        let resolvedQueries = 0;
         let totalBotResponses = 0;
 
         // Get analytics data for dashboard
@@ -737,6 +883,20 @@ app.get('/', requireAuth, async (req, res) => {
             message_type: 'user'
         });
         const analyzedMessages = messages.filter(m => m.intent || m.sentiment);
+
+        // Calculate resolution metrics
+        const botMessages = await Message.find({
+            vendor_id: req.vendorId,
+            message_type: 'bot',
+            'resolution_analysis.analyzed_at': { $exists: true }
+        });
+
+        totalBotResponses = botMessages.length;
+        resolvedQueries = botMessages.filter(m => m.resolution_analysis?.resolved === true).length;
+        totalUserQueries = await Message.countDocuments({
+            vendor_id: req.vendorId,
+            message_type: 'user'
+        });
 
         const analytics = {
             totalAnalyzed: analyzedMessages.length,
@@ -750,6 +910,14 @@ app.get('/', requireAuth, async (req, res) => {
                 complaint: analyzedMessages.filter(m => m.intent === 'complaint').length,
                 need_action: analyzedMessages.filter(m => m.intent === 'need_action').length,
                 feedback: analyzedMessages.filter(m => m.intent === 'feedback').length
+            },
+            resolution: {
+                totalQueries: totalUserQueries,
+                analyzedResponses: totalBotResponses,
+                resolvedQueries: resolvedQueries,
+                resolutionRate: totalBotResponses > 0 ? Math.round((resolvedQueries / totalBotResponses) * 100) : 0,
+                avgConfidence: botMessages.length > 0 ? 
+                    Math.round((botMessages.reduce((sum, m) => sum + (m.resolution_analysis?.confidence || 0), 0) / botMessages.length) * 100) : 0
             }
         };
 
@@ -762,10 +930,6 @@ app.get('/', requireAuth, async (req, res) => {
 
             const userMessages = messages.filter(m => m.message_type === 'user' && m.intent && m.sentiment);
             const botMessages = messages.filter(m => m.message_type === 'bot');
-
-            // Count for AI response rate calculation
-            totalUserMessages += messages.filter(m => m.message_type === 'user').length;
-            totalBotResponses += botMessages.length;
 
             // Get latest intent and sentiment
             const latestIntent = userMessages.length > 0 ? userMessages[0].intent : null;
@@ -807,18 +971,11 @@ app.get('/', requireAuth, async (req, res) => {
             };
         }));
 
-        // Calculate AI Response Rate
-        const aiResponseRate = totalUserMessages > 0 ?
-            Math.round((totalBotResponses / totalUserMessages) * 100) : 0;
-
         console.log(`[DASHBOARD] Rendering with ${chatroomsWithInsights.length} chatrooms`);
         res.render('chatrooms', {
             chatrooms: chatroomsWithInsights,
             analytics,
-            currentPage: 'dashboard',
-            aiResponseRate,
-            totalUserMessages,
-            totalBotResponses
+            currentPage: 'dashboard'
         });
     } catch (error) {
         console.error('[DASHBOARD] Error:', error);
@@ -1063,21 +1220,123 @@ app.post('/api/chatroom/:id/tags', requireAuth, async (req, res) => {
 // SLA Management Route (Protected)
 app.get('/sla', requireAuth, async (req, res) => {
     try {
+        const { getSLAStats } = require('./services/sla');
         const slaStats = await getSLAStats(req.vendorId);
-        res.render('sla', { slaStats, currentPage: 'sla' });
+        
+        // Get all conversations with SLA info
+        const chatrooms = await Chatroom.find({ vendor_id: req.vendorId }).sort({ updatedAt: -1 });
+        
+        const allConversations = [];
+        const overdueConversations = [];
+        const dueSoonConversations = [];
+        
+        for (const chatroom of chatrooms) {
+            // Get first user message for accurate SLA calculation
+            const firstUserMessage = await Message.findOne({
+                chatroom_id: chatroom._id,
+                message_type: 'user'
+            }).sort({ createdAt: 1 });
+            
+            // Get latest intent
+            const latestMessage = await Message.findOne({
+                chatroom_id: chatroom._id,
+                message_type: 'user',
+                intent: { $exists: true }
+            }).sort({ createdAt: -1 });
+            
+            // Calculate SLA status
+            const { calculateSLAStatus } = require('./services/sla');
+            const slaInfo = calculateSLAStatus(chatroom, firstUserMessage);
+            
+            const conversationData = {
+                ...chatroom.toObject(),
+                slaInfo,
+                latestIntent: latestMessage?.intent || null
+            };
+            
+            allConversations.push(conversationData);
+            
+            // Categorize conversations
+            if (slaInfo.status === 'overdue') {
+                conversationData.slaInfo.hoursOverdue = Math.ceil((new Date() - slaInfo.slaDeadline) / (60 * 60 * 1000));
+                overdueConversations.push(conversationData);
+            } else if (slaInfo.status === 'pending' && slaInfo.hoursRemaining <= 2) {
+                dueSoonConversations.push(conversationData);
+            }
+        }
+        
+        res.render('sla', { 
+            slaStats, 
+            allConversations,
+            overdueConversations,
+            dueSoonConversations,
+            currentPage: 'sla' 
+        });
     } catch (error) {
         console.error('SLA page error:', error);
         res.status(500).send('Error loading SLA data');
     }
 });
 
-// Update conversation status API
+// Feedback System APIs - Simplified
+
+// Submit feedback API endpoint for agent
+app.post('/api/feedback/submit', requireAuth, async (req, res) => {
+    try {
+        const { phone_number, chatroom_id, rating, feedback_text } = req.body;
+        
+        if (!phone_number || !chatroom_id || !rating) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+        
+        const { FeedbackAPI } = require('./api/feedback');
+        const result = await FeedbackAPI.submitFeedback(
+            req.vendorId,
+            chatroom_id,
+            phone_number,
+            rating,
+            feedback_text || ''
+        );
+        
+        res.json(result);
+    } catch (error) {
+        console.error('Submit feedback error:', error);
+        res.status(500).json({ error: 'Failed to submit feedback' });
+    }
+});
+
+// Get feedback analytics
+app.get('/api/feedback/analytics', requireAuth, async (req, res) => {
+    try {
+        const { period } = req.query;
+        const analytics = await FeedbackService.getFeedbackAnalytics(req.vendorId, period);
+        res.json(analytics);
+    } catch (error) {
+        console.error('Feedback analytics error:', error);
+        res.status(500).json({ error: 'Failed to get feedback analytics' });
+    }
+});
+
+// Update conversation status API with feedback integration
 app.post('/api/chatroom/:id/status', requireAuth, async (req, res) => {
     try {
         const { id } = req.params;
         const { status } = req.body;
 
         const chatroom = await updateConversationStatus(id, status, req.vendorId);
+        
+        // Trigger feedback when manually closed
+        if (status === 'closed') {
+            try {
+                const { FeedbackAPI } = require('./api/feedback');
+                // Send immediate feedback request for manual close
+                await sendMessage(chatroom.phone_number, "Your conversation has been resolved. Please rate your experience 1-5 ⭐ to help us improve!");
+                console.log(`[FEEDBACK] Sent manual close feedback request to ${chatroom.phone_number}`);
+            } catch (feedbackError) {
+                console.warn('[FEEDBACK] Failed to send manual close feedback:', feedbackError.message);
+            }
+        }
+        
         res.json({ success: true, chatroom });
     } catch (error) {
         console.error('Update status error:', error);
@@ -1131,9 +1390,47 @@ app.post('/admin/pricing/exchange-rate', requireAdmin, AdminController.updateExc
 app.post('/admin/pricing/global', requireAdmin, AdminController.updateGlobalPricing);
 app.post('/admin/pricing/default-markup', requireAdmin, AdminController.updateDefaultMarkup);
 
-// Feedback Route (Protected)
-app.get('/feedback', requireAuth, (req, res) => {
-    res.render('feedback', { currentPage: 'feedback' });
+// Feedback Route (Protected) - Updated with real data
+app.get('/feedback', requireAuth, async (req, res) => {
+    try {
+        const { FeedbackRequest } = require('./models/feedback');
+        
+        // Get feedback data for this vendor
+        const feedbacks = await FeedbackRequest.find({ 
+            vendor_id: req.vendorId,
+            status: 'responded'
+        }).sort({ createdAt: -1 }).limit(50);
+        
+        // Calculate analytics
+        const totalFeedbacks = feedbacks.length;
+        const averageRating = totalFeedbacks > 0 ? 
+            (feedbacks.reduce((sum, f) => sum + f.rating, 0) / totalFeedbacks).toFixed(1) : 0;
+        
+        const ratingDistribution = {
+            5: feedbacks.filter(f => f.rating === 5).length,
+            4: feedbacks.filter(f => f.rating === 4).length,
+            3: feedbacks.filter(f => f.rating === 3).length,
+            2: feedbacks.filter(f => f.rating === 2).length,
+            1: feedbacks.filter(f => f.rating === 1).length
+        };
+        
+        const analytics = {
+            totalFeedbacks,
+            averageRating,
+            ratingDistribution,
+            satisfactionRate: totalFeedbacks > 0 ? 
+                Math.round(((ratingDistribution[4] + ratingDistribution[5]) / totalFeedbacks) * 100) : 0
+        };
+        
+        res.render('feedback', { 
+            feedbacks,
+            analytics,
+            currentPage: 'feedback' 
+        });
+    } catch (error) {
+        console.error('Feedback page error:', error);
+        res.status(500).send('Error loading feedback data');
+    }
 });
 
 // Billing Route (Protected)

@@ -36,12 +36,12 @@
     <div class="stat-card">
         <div class="stat-header">
             <div class="stat-icon" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white;">
-                <i class="fas fa-robot"></i>
+                <i class="fas fa-check-circle"></i>
             </div>
         </div>
-        <div class="stat-number"><%= aiResponseRate %>%</div>
-        <div class="stat-label">AI Response Rate</div>
-        <div class="stat-detail"><%= totalBotResponses %>/<%= totalUserMessages %> responses</div>
+        <div class="stat-number"><%= analytics.resolution ? analytics.resolution.resolutionRate : 0 %>%</div>
+        <div class="stat-label">AI Resolution Rate</div>
+        <div class="stat-detail"><%= analytics.resolution ? analytics.resolution.resolvedQueries : 0 %>/<%= analytics.resolution ? analytics.resolution.analyzedResponses : 0 %> queries resolved</div>
     </div>
 </div>
 
@@ -86,6 +86,15 @@
             <div class="analytics-details">
                 <h3><%= analytics ? analytics.totalAnalyzed : 0 %></h3>
                 <p>Messages Analyzed</p>
+            </div>
+        </div>
+        <div class="analytics-card">
+            <div class="analytics-icon" style="background: linear-gradient(135deg, #06b6d4, #0891b2);">
+                <i class="fas fa-bullseye"></i>
+            </div>
+            <div class="analytics-details">
+                <h3><%= analytics.resolution ? analytics.resolution.avgConfidence : 0 %>%</h3>
+                <p>Avg Resolution Confidence</p>
             </div>
         </div>
     </div>

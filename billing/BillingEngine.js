@@ -177,6 +177,61 @@ class BillingEngine {
     }
     
     /**
+     * Charge for feedback request service
+     */
+    async chargeFeedbackRequest(vendorId, phoneNumber) {
+        const feedbackCostMicro = 1000; // $0.001 per feedback request
+        
+        // Get or create vendor wallet
+        let wallet = await VendorWallet.findOne({ vendor_id: vendorId });
+        if (!wallet) {
+            wallet = new VendorWallet({ vendor_id: vendorId });
+            await wallet.save();
+        }
+        
+        // Check sufficient balance
+        if (wallet.balance_usd_micro < feedbackCostMicro) {
+            throw new Error(`Insufficient balance for feedback service. Required: $0.001, Available: $${(wallet.balance_usd_micro/1000000).toFixed(6)}`);
+        }
+        
+        // Deduct from wallet
+        wallet.balance_usd_micro -= feedbackCostMicro;
+        wallet.last_updated = new Date();
+        await wallet.save();
+        
+        // Create usage record
+        const usageRecord = new UsageRecord({
+            vendor_id: vendorId,
+            phone_number: phoneNumber,
+            message_id: null,
+            conversation_window: 'feedback_service',
+            services_used: [{
+                service_type: 'feedback_request',
+                model_name: 'system',
+                prompt_tokens: 0,
+                completion_tokens: 0,
+                total_tokens: 0,
+                duration_seconds: 0,
+                base_cost_usd_micro: feedbackCostMicro
+            }],
+            total_base_cost_usd_micro: feedbackCostMicro,
+            markup_percentage: 0,
+            markup_amount_usd_micro: 0,
+            final_cost_usd_micro: feedbackCostMicro
+        });
+        
+        await usageRecord.save();
+        
+        console.log(`💰 Charged vendor ${vendorId} for feedback service: $0.001`);
+        
+        return {
+            charged: true,
+            remainingBalance: wallet.balance_usd_micro,
+            usageRecordId: usageRecord._id
+        };
+    }
+    
+    /**
      * Add money to vendor wallet
      */
     async addToWallet(vendorId, amountUsdMicro) {

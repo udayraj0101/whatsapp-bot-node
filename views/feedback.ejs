@@ -6,38 +6,94 @@
 </div>
 
 <div class="feedback-dashboard">
+    <!-- Analytics Cards -->
+    <div class="analytics-grid">
+        <div class="card stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-star"></i>
+            </div>
+            <div class="stat-content">
+                <h3><%= analytics.averageRating %></h3>
+                <p>Average Rating</p>
+            </div>
+        </div>
+        
+        <div class="card stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-comments"></i>
+            </div>
+            <div class="stat-content">
+                <h3><%= analytics.totalFeedbacks %></h3>
+                <p>Total Feedbacks</p>
+            </div>
+        </div>
+        
+        <div class="card stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-thumbs-up"></i>
+            </div>
+            <div class="stat-content">
+                <h3><%= analytics.satisfactionRate %>%</h3>
+                <p>Satisfaction Rate</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Rating Distribution -->
     <div class="card">
         <div class="card-header">
-            <h3>Feedback System</h3>
+            <h3>Rating Distribution</h3>
         </div>
         <div class="card-content">
-            <div class="coming-soon">
-                <i class="fas fa-star"></i>
-                <h3>Customer Feedback Management</h3>
-                <p>Advanced feedback collection, rating analytics, and satisfaction tracking coming in Phase 2</p>
-                <div class="features-list">
-                    <div class="feature-item">
-                        <i class="fas fa-check"></i>
-                        <span>Customer satisfaction surveys</span>
+            <div class="rating-bars">
+                <% for(let i = 5; i >= 1; i--) { %>
+                <div class="rating-bar">
+                    <span class="rating-label"><%= i %> ⭐</span>
+                    <div class="bar-container">
+                        <div class="bar-fill" style="width: <%= analytics.totalFeedbacks > 0 ? (analytics.ratingDistribution[i] / analytics.totalFeedbacks * 100) : 0 %>%"></div>
                     </div>
-                    <div class="feature-item">
-                        <i class="fas fa-check"></i>
-                        <span>Rating analytics and trends</span>
+                    <span class="rating-count"><%= analytics.ratingDistribution[i] %></span>
+                </div>
+                <% } %>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Feedbacks -->
+    <div class="card">
+        <div class="card-header">
+            <h3>Recent Feedbacks</h3>
+        </div>
+        <div class="card-content">
+            <% if (feedbacks.length > 0) { %>
+            <div class="feedback-list">
+                <% feedbacks.forEach(feedback => { %>
+                <div class="feedback-item">
+                    <div class="feedback-header">
+                        <div class="rating-stars">
+                            <% for(let i = 1; i <= 5; i++) { %>
+                                <i class="fas fa-star <%= i <= feedback.rating ? 'filled' : '' %>"></i>
+                            <% } %>
+                        </div>
+                        <span class="feedback-date"><%= new Date(feedback.createdAt).toLocaleDateString() %></span>
                     </div>
-                    <div class="feature-item">
-                        <i class="fas fa-check"></i>
-                        <span>Feedback categorization</span>
-                    </div>
-                    <div class="feature-item">
-                        <i class="fas fa-check"></i>
-                        <span>Performance insights</span>
-                    </div>
-                    <div class="feature-item">
-                        <i class="fas fa-check"></i>
-                        <span>Automated follow-ups</span>
+                    <div class="feedback-content">
+                        <p class="phone-number">📱 <%= feedback.phone_number %></p>
+                        <% if (feedback.feedback_text) { %>
+                        <p class="feedback-text">"<%= feedback.feedback_text %>"</p>
+                        <% } %>
+                        <span class="trigger-type"><%= feedback.trigger_type.replace('_', ' ') %></span>
                     </div>
                 </div>
+                <% }) %>
             </div>
+            <% } else { %>
+            <div class="empty-state">
+                <i class="fas fa-star"></i>
+                <h4>No Feedback Yet</h4>
+                <p>Customer feedback will appear here once they start rating your service.</p>
+            </div>
+            <% } %>
         </div>
     </div>
 </div>
@@ -48,57 +104,158 @@
     gap: 2rem;
 }
 
-.coming-soon {
-    text-align: center;
-    padding: 4rem 2rem;
-}
-
-.coming-soon i {
-    font-size: 4rem;
-    margin-bottom: 1.5rem;
-    color: var(--warning-color);
-}
-
-.coming-soon h3 {
-    font-size: 1.75rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin-bottom: 1rem;
-}
-
-.coming-soon p {
-    color: var(--text-secondary);
-    margin-bottom: 2rem;
-    font-size: 1.1rem;
-}
-
-.features-list {
+.analytics-grid {
     display: grid;
-    gap: 1rem;
-    max-width: 500px;
-    margin: 0 auto;
-    text-align: left;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
 }
 
-.feature-item {
+.stat-card {
     display: flex;
     align-items: center;
     gap: 1rem;
-    padding: 0.75rem 1rem;
-    background: var(--background-color);
-    border-radius: 8px;
-    border-left: 4px solid var(--warning-color);
+    padding: 1.5rem;
 }
 
-.feature-item i {
-    color: var(--success-color);
+.stat-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.5rem;
+}
+
+.stat-content h3 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.stat-content p {
+    color: var(--text-secondary);
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+.rating-bars {
+    display: grid;
+    gap: 1rem;
+}
+
+.rating-bar {
+    display: grid;
+    grid-template-columns: 60px 1fr 40px;
+    align-items: center;
+    gap: 1rem;
+}
+
+.rating-label {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.bar-container {
+    height: 8px;
+    background: var(--border-color);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--warning-color), var(--success-color));
+    transition: width 0.3s ease;
+}
+
+.rating-count {
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-align: right;
+}
+
+.feedback-list {
+    display: grid;
+    gap: 1rem;
+}
+
+.feedback-item {
+    padding: 1.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--background-color);
+}
+
+.feedback-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.rating-stars {
+    display: flex;
+    gap: 2px;
+}
+
+.rating-stars .fa-star {
+    color: var(--border-color);
     font-size: 1rem;
 }
 
-.feature-item span {
+.rating-stars .fa-star.filled {
+    color: var(--warning-color);
+}
+
+.feedback-date {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.phone-number {
+    font-weight: 600;
     color: var(--text-primary);
-    font-weight: 500;
-    font-size: 0.95rem;
+    margin-bottom: 0.5rem;
+}
+
+.feedback-text {
+    color: var(--text-secondary);
+    font-style: italic;
+    margin-bottom: 0.5rem;
+}
+
+.trigger-type {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    background: var(--primary-color);
+    color: white;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    text-transform: capitalize;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem 2rem;
+}
+
+.empty-state i {
+    font-size: 3rem;
+    color: var(--border-color);
+    margin-bottom: 1rem;
+}
+
+.empty-state h4 {
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+    color: var(--text-secondary);
 }
 </style>
 

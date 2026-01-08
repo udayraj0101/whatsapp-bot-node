@@ -18,12 +18,14 @@ function calculateSLAStatus(chatroom, firstUserMessage) {
             timeElapsed,
             slaDeadline,
             isOverdue: false,
-            hoursRemaining: 0
+            hoursRemaining: 0,
+            hoursOverdue: 0
         };
     }
     
     const isOverdue = timeElapsed > SLA_MILLISECONDS;
     const hoursRemaining = Math.max(0, (SLA_MILLISECONDS - timeElapsed) / (60 * 60 * 1000));
+    const hoursOverdue = isOverdue ? Math.ceil((timeElapsed - SLA_MILLISECONDS) / (60 * 60 * 1000)) : 0;
     
     let status;
     if (isOverdue) {
@@ -39,7 +41,8 @@ function calculateSLAStatus(chatroom, firstUserMessage) {
         timeElapsed,
         slaDeadline,
         isOverdue,
-        hoursRemaining: Math.round(hoursRemaining * 10) / 10
+        hoursRemaining: Math.round(hoursRemaining * 10) / 10,
+        hoursOverdue
     };
 }
 
