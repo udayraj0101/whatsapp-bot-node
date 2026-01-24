@@ -137,7 +137,9 @@ const pricingConfigSchema = new mongoose.Schema({
     // Base AI service costs (USD)
     gpt4_mini_input_price: { type: Number, default: 0.00015 }, // per 1K tokens
     gpt4_mini_output_price: { type: Number, default: 0.0006 }, // per 1K tokens
-    whisper_price_per_minute: { type: Number, default: 0.006 } // per minute
+    whisper_price_per_minute: { type: Number, default: 0.006 }, // per minute
+    vision_input_price: { type: Number, default: 0.00015 }, // per 1K tokens (same as GPT-4o-mini)
+    vision_output_price: { type: Number, default: 0.0006 } // per 1K tokens
 }, {
     timestamps: true
 });
@@ -231,7 +233,7 @@ const WalletTransaction = mongoose.model('WalletTransaction', walletTransactionS
 // Create or get chatroom (Updated for multi-tenancy with duplicate prevention)
 async function createOrGetChatroom(vendorId, businessId, agentId, threadId, phoneNumber) {
     try {
-        // First, try to find existing chatroom
+        // First, try to find existing chatroom for this vendor
         let chatroom = await Chatroom.findOne({ 
             thread_id: threadId, 
             vendor_id: vendorId 
@@ -245,28 +247,19 @@ async function createOrGetChatroom(vendorId, businessId, agentId, threadId, phon
             return chatroom;
         }
         
-        // Check for duplicates by phone number (cleanup old logic)
-        const duplicates = await Chatroom.find({ 
+        // Check for existing chatroom by phone number for this vendor only
+        chatroom = await Chatroom.findOne({ 
             phone_number: phoneNumber, 
             vendor_id: vendorId 
         }).sort({ createdAt: -1 });
         
-        if (duplicates.length > 0) {
-            // Use the most recent chatroom and update its thread_id if needed
-            chatroom = duplicates[0];
+        if (chatroom) {
+            // Update thread_id if needed and return
             if (chatroom.thread_id !== threadId) {
                 chatroom.thread_id = threadId;
                 chatroom.updatedAt = new Date();
                 await chatroom.save();
             }
-            
-            // Remove older duplicates
-            if (duplicates.length > 1) {
-                const oldChatroomIds = duplicates.slice(1).map(c => c._id);
-                await Chatroom.deleteMany({ _id: { $in: oldChatroomIds } });
-                console.log(`[CHATROOM] Cleaned up ${oldChatroomIds.length} duplicate chatrooms for ${phoneNumber}`);
-            }
-            
             console.log(`[CHATROOM] Reused existing chatroom for ${phoneNumber}`);
             return chatroom;
         }
@@ -288,8 +281,23 @@ async function createOrGetChatroom(vendorId, businessId, agentId, threadId, phon
         // Handle duplicate key error gracefully
         if (error.code === 11000) {
             console.log(`[CHATROOM] Duplicate key error, fetching existing chatroom for ${threadId}`);
-            return await Chatroom.findOne({ thread_id: threadId, vendor_id: vendorId });
+            const existingChatroom = await Chatroom.findOne({ thread_id: threadId, vendor_id: vendorId });
+            if (existingChatroom) {
+                return existingChatroom;
+            }
+            // If still null, create with unique thread_id
+            const uniqueThreadId = `${threadId}_${Date.now()}`;
+            const chatroom = new Chatroom({
+                vendor_id: vendorId,
+                business_id: businessId,
+                agent_id: agentId,
+                thread_id: uniqueThreadId,
+                phone_number: phoneNumber,
+                sla_deadline: new Date(Date.now() + 24 * 60 * 60 * 1000)
+            });
+            return await chatroom.save();
         }
+        console.error('[CHATROOM] Error creating chatroom:', error);
         throw error;
     }
 }

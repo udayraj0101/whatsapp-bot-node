@@ -372,30 +372,13 @@ async function handleIncomingMessage(message, value, phoneNumberId) {
 
         try {
             // Download media file
-            const fileName = await downloadMedia(mediaData.id, messageType, from);
+            const fileName = await downloadMedia(mediaData.id, messageType, from, vendor.vendor_id);
             mediaInfo = `[Media received: ${messageType}${fileName ? ` - ${fileName}` : ''}]`;
 
-            // Process media based on type
-            if (messageType === 'audio' && fileName) {
-                // Transcribe audio to text
-                const audioPath = path.join(uploadsDir, fileName);
-                const transcription = await transcribeAudio(audioPath);
-                if (transcription) {
-                    messageText = `${mediaInfo} [Transcription: ${transcription}]`;
-                    console.log(`Audio transcribed: ${transcription}`);
-                } else {
-                    messageText = caption ? `${mediaInfo} ${caption}` : mediaInfo;
-                }
-            } else if (messageType === 'image' && fileName) {
-                // Analyze image content
-                const imagePath = path.join(uploadsDir, fileName);
-                const imageAnalysis = await analyzeImage(imagePath);
-                if (imageAnalysis) {
-                    messageText = `${mediaInfo} [Image Analysis: ${imageAnalysis}]`;
-                    console.log(`Image analyzed: ${imageAnalysis}`);
-                } else {
-                    messageText = caption ? `${mediaInfo} ${caption}` : mediaInfo;
-                }
+            if (fileName) {
+                messageText = caption ? `${mediaInfo} ${caption}` : mediaInfo;
+                // Store filename for processing in saveMessageWithAI
+                messageText += `|FILENAME:${fileName}`;
             } else {
                 messageText = caption ? `${mediaInfo} ${caption}` : mediaInfo;
             }
@@ -418,7 +401,7 @@ async function handleIncomingMessage(message, value, phoneNumberId) {
     }
 
     // Mark message as read
-    await markMessageAsRead(message.id);
+    await markMessageAsRead(message.id, vendor.vendor_id);
 
     try {
         // Use vendor-specific business_id and agent_id
@@ -427,6 +410,13 @@ async function handleIncomingMessage(message, value, phoneNumberId) {
 
         // Create or get chatroom - VENDOR SCOPED
         const chatroom = await createOrGetChatroom(vendor.vendor_id, businessId, agentId, from, from);
+        
+        if (!chatroom) {
+            console.log(`[CHATROOM] Failed to create/get chatroom for ${from}`);
+            await sendMessage(from, 'Sorry, there was an issue processing your message. Please try again.', vendor.vendor_id);
+            return;
+        }
+        
         console.log(`[DATA_VALIDATION] Chatroom created/found with vendor_id: ${vendor.vendor_id}`);
 
         // Save user message with AI intelligence - VENDOR SCOPED
@@ -439,8 +429,14 @@ async function handleIncomingMessage(message, value, phoneNumberId) {
         // Add usage from AI services used in saveMessageWithAI
         if (userMessage.aiUsageData) {
             aiUsageData = [...userMessage.aiUsageData];
-            console.log(`[BILLING] Collected ${aiUsageData.length} AI services from message processing`);
         }
+        
+        // Add media processing usage data if available
+        if (userMessage.mediaUsageData) {
+            aiUsageData = [...aiUsageData, ...userMessage.mediaUsageData];
+        }
+        
+        console.log(`[BILLING] Collected ${aiUsageData.length} AI services from message processing`);
 
         // Get agent context from database (fresh fetch each time)
         console.log(`Fetching agent context for vendor: ${vendor.vendor_id}, business_id: ${businessId}, agent_id: ${agentId}`);
@@ -525,7 +521,7 @@ You are ${vendor.company_name} customer support assistant. Help customers with t
             });
         }
 
-        await sendMessage(from, response.data.ai_response);
+        await sendMessage(from, response.data.ai_response, vendor.vendor_id);
         console.log(`[MESSAGE_LIFECYCLE] RESPONDED - Vendor: ${vendor.vendor_id}, From: ${from}, Response: ${response.data.ai_response}`);
 
         // Handle tool calls from agent
@@ -548,7 +544,7 @@ You are ${vendor.company_name} customer support assistant. Help customers with t
                     }
                 } else if (toolCall.name === 'request_feedback') {
                     try {
-                        await sendMessage(from, toolCall.parameters.message);
+                        await sendMessage(from, toolCall.parameters.message, vendor.vendor_id);
                         console.log(`[FEEDBACK] Agent requested feedback: ${toolCall.parameters.message}`);
                     } catch (error) {
                         console.error('[FEEDBACK] Request feedback failed:', error);
@@ -605,7 +601,11 @@ You are ${vendor.company_name} customer support assistant. Help customers with t
         }
     } catch (error) {
         console.log(`[MESSAGE_LIFECYCLE] ERROR - Vendor: ${vendor.vendor_id}, From: ${from}, Error: ${error.message}`);
-        await sendMessage(from, 'Sorry, I encountered an error. Please try again.');
+        try {
+            await sendMessage(from, 'Sorry, I encountered an error. Please try again.', vendor.vendor_id);
+        } catch (sendError) {
+            console.log(`[SEND_ERROR] Failed to send error message: ${sendError.message}`);
+        }
     }
 }
 
@@ -677,18 +677,73 @@ async function saveMessageWithAI(vendorId, chatroomId, messageType, content, pho
         let sentiment = null;
         let tags = [];
         const aiUsageData = [];
+        const mediaUsageData = [];
+        let processedContent = content;
 
-        // Only analyze user messages for intelligence
-        if (messageType === 'user' && content && !content.includes('[Media received:')) {
-            console.log(`[AI_PROCESSING] Analyzing user message: ${content.substring(0, 100)}...`);
+        // Process media if filename is embedded in content
+        if (content.includes('|FILENAME:')) {
+            const [baseContent, filenamePart] = content.split('|FILENAME:');
+            const fileName = filenamePart;
+            processedContent = baseContent;
+            
+            if (mediaType === 'audio' && fileName) {
+                // Transcribe audio to text
+                const audioPath = path.join(__dirname, 'uploads', fileName);
+                const transcriptionResult = await transcribeAudio(audioPath);
+                if (transcriptionResult && transcriptionResult.text) {
+                    processedContent += ` [Transcription: ${transcriptionResult.text}]`;
+                    console.log(`Audio transcribed: ${transcriptionResult.text}`);
+                    
+                    // Add STT usage to billing
+                    if (transcriptionResult.duration) {
+                        mediaUsageData.push({
+                            service_type: 'stt',
+                            model_name: 'whisper-1',
+                            prompt_tokens: 0,
+                            completion_tokens: 0,
+                            total_tokens: 0,
+                            duration_seconds: transcriptionResult.duration,
+                            base_cost_usd_micro: Math.round((transcriptionResult.duration / 60) * 6000) // $0.006 per minute
+                        });
+                        console.log(`[STT] Added billing for ${transcriptionResult.duration}s audio`);
+                    }
+                }
+            } else if (mediaType === 'image' && fileName) {
+                // Analyze image content
+                const imagePath = path.join(__dirname, 'uploads', fileName);
+                const imageResult = await analyzeImage(imagePath);
+                if (imageResult && imageResult.analysis) {
+                    processedContent += ` [Image Analysis: ${imageResult.analysis}]`;
+                    console.log(`Image analyzed: ${imageResult.analysis}`);
+                    
+                    // Add Vision usage to billing
+                    if (imageResult.tokenUsage) {
+                        mediaUsageData.push({
+                            service_type: 'vision',
+                            model_name: 'gpt-4o-mini',
+                            prompt_tokens: imageResult.tokenUsage.prompt_tokens || 0,
+                            completion_tokens: imageResult.tokenUsage.completion_tokens || 0,
+                            total_tokens: imageResult.tokenUsage.total_tokens || 0,
+                            duration_seconds: 0,
+                            base_cost_usd_micro: Math.round(((imageResult.tokenUsage.prompt_tokens || 0) * 0.00015 + (imageResult.tokenUsage.completion_tokens || 0) * 0.0006) * 1000000)
+                        });
+                        console.log(`[VISION] Added billing for ${imageResult.tokenUsage.total_tokens} tokens`);
+                    }
+                }
+            }
+        }
+
+        // Only analyze user messages for intelligence (excluding media processing messages)
+        if (messageType === 'user' && processedContent && !processedContent.includes('[Media received:')) {
+            console.log(`[AI_PROCESSING] Analyzing user message: ${processedContent.substring(0, 100)}...`);
 
             // Run AI analysis in parallel for better performance
             const [detectedIntent, detectedSentiment] = await Promise.all([
-                detectIntent(content).catch(err => {
+                detectIntent(processedContent).catch(err => {
                     console.log('Intent detection failed:', err.message);
                     return { intent: null, tokenUsage: null };
                 }),
-                analyzeSentiment(content).catch(err => {
+                analyzeSentiment(processedContent).catch(err => {
                     console.log('Sentiment analysis failed:', err.message);
                     return { sentiment: null, tokenUsage: null };
                 })
@@ -724,7 +779,7 @@ async function saveMessageWithAI(vendorId, chatroomId, messageType, content, pho
 
             // Auto-tag based on intent
             if (intent) {
-                tags = await autoTagFromIntent(intent, content).catch(err => {
+                tags = await autoTagFromIntent(intent, processedContent).catch(err => {
                     console.log('Auto-tagging failed:', err.message);
                     return [];
                 });
@@ -736,7 +791,7 @@ async function saveMessageWithAI(vendorId, chatroomId, messageType, content, pho
             vendor_id: vendorId, // CRITICAL: Always vendor-scoped
             chatroom_id: chatroomId,
             message_type: messageType,
-            content: content,
+            content: processedContent,
             phone_number: phoneNumber,
             media_type: mediaType,
             media_url: mediaUrl,
@@ -761,6 +816,7 @@ async function saveMessageWithAI(vendorId, chatroomId, messageType, content, pho
 
         // Return message with AI usage data for billing
         savedMessage.aiUsageData = aiUsageData;
+        savedMessage.mediaUsageData = mediaUsageData;
         return savedMessage;
     } catch (error) {
         console.error(`[AI_PROCESSING] Error saving message with AI for vendor ${vendorId}:`, error);
@@ -768,10 +824,25 @@ async function saveMessageWithAI(vendorId, chatroomId, messageType, content, pho
     }
 }
 
-async function sendMessage(to, text) {
+async function sendMessage(to, text, vendorId = null) {
     try {
+        let accessToken = WHATSAPP_TOKEN;
+        let phoneId = WHATSAPP_PHONE_ID;
+        
+        // Use vendor-specific WABA credentials if vendorId provided
+        if (vendorId) {
+            const vendor = await Vendor.findOne({ vendor_id: vendorId, is_active: true });
+            if (vendor && vendor.whatsapp_access_token && vendor.whatsapp_phone_id) {
+                accessToken = vendor.whatsapp_access_token;
+                phoneId = vendor.whatsapp_phone_id;
+                console.log(`[WABA] Using vendor credentials for ${vendor.company_name}`);
+            } else {
+                console.log(`[WABA] Vendor credentials not found, using default`);
+            }
+        }
+        
         const response = await axios.post(
-            `https://graph.facebook.com/v18.0/${WHATSAPP_PHONE_ID}/messages`,
+            `https://graph.facebook.com/v18.0/${phoneId}/messages`,
             {
                 messaging_product: 'whatsapp',
                 to: to,
@@ -780,7 +851,7 @@ async function sendMessage(to, text) {
             },
             {
                 headers: {
-                    'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
+                    'Authorization': `Bearer ${accessToken}`,
                     'Content-Type': 'application/json'
                 }
             }
@@ -791,10 +862,22 @@ async function sendMessage(to, text) {
     }
 }
 
-async function markMessageAsRead(messageId) {
+async function markMessageAsRead(messageId, vendorId = null) {
     try {
+        let accessToken = WHATSAPP_TOKEN;
+        let phoneId = WHATSAPP_PHONE_ID;
+        
+        // Use vendor-specific WABA credentials if vendorId provided
+        if (vendorId) {
+            const vendor = await Vendor.findOne({ vendor_id: vendorId, is_active: true });
+            if (vendor && vendor.whatsapp_access_token && vendor.whatsapp_phone_id) {
+                accessToken = vendor.whatsapp_access_token;
+                phoneId = vendor.whatsapp_phone_id;
+            }
+        }
+        
         await axios.post(
-            `https://graph.facebook.com/v18.0/${WHATSAPP_PHONE_ID}/messages`,
+            `https://graph.facebook.com/v18.0/${phoneId}/messages`,
             {
                 messaging_product: 'whatsapp',
                 status: 'read',
@@ -802,7 +885,7 @@ async function markMessageAsRead(messageId) {
             },
             {
                 headers: {
-                    'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
+                    'Authorization': `Bearer ${accessToken}`,
                     'Content-Type': 'application/json'
                 }
             }
@@ -812,14 +895,24 @@ async function markMessageAsRead(messageId) {
     }
 }
 
-async function downloadMedia(mediaId, mediaType, from) {
+async function downloadMedia(mediaId, mediaType, from, vendorId = null) {
     try {
+        let accessToken = WHATSAPP_TOKEN;
+        
+        // Use vendor-specific WABA credentials if vendorId provided
+        if (vendorId) {
+            const vendor = await Vendor.findOne({ vendor_id: vendorId, is_active: true });
+            if (vendor && vendor.whatsapp_access_token) {
+                accessToken = vendor.whatsapp_access_token;
+            }
+        }
+        
         // Step 1: Get media URL
         const mediaResponse = await axios.get(
             `https://graph.facebook.com/v19.0/${mediaId}`,
             {
                 headers: {
-                    'Authorization': `Bearer ${WHATSAPP_TOKEN}`
+                    'Authorization': `Bearer ${accessToken}`
                 }
             }
         );
@@ -847,7 +940,7 @@ async function downloadMedia(mediaId, mediaType, from) {
         // Step 2: Download the actual media file with required headers
         const fileResponse = await axios.get(mediaUrl, {
             headers: {
-                'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
+                'Authorization': `Bearer ${accessToken}`,
                 'User-Agent': 'curl/7.64.1' // Essential for downloading media
             },
             responseType: 'arraybuffer' // Get binary data
@@ -1330,7 +1423,7 @@ app.post('/api/chatroom/:id/status', requireAuth, async (req, res) => {
             try {
                 const { FeedbackAPI } = require('./api/feedback');
                 // Send immediate feedback request for manual close
-                await sendMessage(chatroom.phone_number, "Your conversation has been resolved. Please rate your experience 1-5 ⭐ to help us improve!");
+                await sendMessage(chatroom.phone_number, "Your conversation has been resolved. Please rate your experience 1-5 ⭐ to help us improve!", req.vendorId);
                 console.log(`[FEEDBACK] Sent manual close feedback request to ${chatroom.phone_number}`);
             } catch (feedbackError) {
                 console.warn('[FEEDBACK] Failed to send manual close feedback:', feedbackError.message);
