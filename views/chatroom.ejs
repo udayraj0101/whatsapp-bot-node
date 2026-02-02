@@ -274,6 +274,130 @@
             opacity: 0.8;
             margin-top: 0.75rem;
         }
+        
+        /* Media Display */
+        .media-container {
+            margin: 1rem 0;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+        .media-header {
+            background: var(--background);
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        .media-content {
+            padding: 1rem;
+        }
+        .pdf-viewer {
+            background: #f9fafb;
+            padding: 1rem;
+            border-radius: 6px;
+            margin: 0.5rem 0;
+        }
+        .pdf-analysis {
+            background: rgba(59, 130, 246, 0.1);
+            border-left: 3px solid var(--primary);
+            padding: 0.75rem;
+            margin: 0.5rem 0;
+            border-radius: 0 6px 6px 0;
+        }
+        .key-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 0.5rem;
+            margin: 0.5rem 0;
+        }
+        .detail-chip {
+            background: var(--surface);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            border: 1px solid var(--border);
+        }
+        .image-viewer {
+            max-width: 100%;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .image-viewer:hover {
+            transform: scale(1.02);
+        }
+        .audio-player {
+            width: 100%;
+            margin: 0.5rem 0;
+        }
+        .transcription {
+            background: rgba(16, 185, 129, 0.1);
+            border-left: 3px solid var(--success);
+            padding: 0.75rem;
+            margin: 0.5rem 0;
+            border-radius: 0 6px 6px 0;
+            font-style: italic;
+        }
+        .verification-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            margin: 0.25rem 0;
+        }
+        .verification-genuine {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+        }
+        .verification-suspicious {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning);
+        }
+        .verification-fake {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--error);
+        }
+        
+        /* Modal for image viewing */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+        }
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 90%;
+            max-height: 90%;
+        }
+        .modal img {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+        }
+        .close {
+            position: absolute;
+            top: 15px;
+            right: 35px;
+            color: white;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+        }
         .intent-badge, .sentiment-badge {
             padding: 0.2rem 0.5rem;
             border-radius: 12px;
@@ -420,7 +544,137 @@
                             <% } %>
                         </div>
                         <div class="message-content">
-                            <%= message.content %>
+                            <!-- Show text content if available -->
+                            <% if (message.content && message.content.trim() !== '') { %>
+                                <%= message.content %>
+                            <% } %>
+                            
+                            <!-- Enhanced Media Display - Only show if media exists -->
+                            <% if (message.media_analysis && (message.media_url || message.media_analysis.extracted_text || message.media_analysis.analysis_summary)) { %>
+                                <div class="media-container">
+                                    <div class="media-header">
+                                        <% if (message.media_analysis.type === 'pdf') { %>
+                                            <i class="fas fa-file-pdf" style="color: #dc2626;"></i>
+                                            PDF Document Analysis
+                                        <% } else if (message.media_analysis.type === 'image') { %>
+                                            <i class="fas fa-image" style="color: #059669;"></i>
+                                            Image Analysis
+                                        <% } else if (message.media_analysis.type === 'audio') { %>
+                                            <i class="fas fa-microphone" style="color: #7c3aed;"></i>
+                                            Audio Transcription
+                                        <% } %>
+                                    </div>
+                                    <div class="media-content">
+                                        <% if (message.media_analysis.type === 'pdf') { %>
+                                            <div class="pdf-viewer">
+                                                <% if (message.media_analysis.analysis_summary) { %>
+                                                    <div class="pdf-analysis">
+                                                        <strong>Analysis:</strong> <%= message.media_analysis.analysis_summary %>
+                                                    </div>
+                                                <% } %>
+                                                <% if (message.media_analysis.key_details && Object.keys(message.media_analysis.key_details).some(key => message.media_analysis.key_details[key] && message.media_analysis.key_details[key] !== '' && message.media_analysis.key_details[key] !== 'N/A')) { %>
+                                                    <div class="key-details">
+                                                        <% Object.entries(message.media_analysis.key_details).forEach(([key, value]) => { %>
+                                                            <% if (value && value !== '' && value !== 'N/A') { %>
+                                                                <div class="detail-chip">
+                                                                    <strong><%= key.replace('_', ' ').toUpperCase() %>:</strong> <%= value %>
+                                                                </div>
+                                                            <% } %>
+                                                        <% }) %>
+                                                    </div>
+                                                <% } %>
+                                                <% if (message.media_analysis.verification && message.media_analysis.verification.verification_status && message.media_analysis.verification.verification_status !== 'UNKNOWN') { %>
+                                                    <div class="verification-badge verification-<%= message.media_analysis.verification.verification_status.toLowerCase() %>">
+                                                        <% if (message.media_analysis.verification.verification_status === 'GENUINE') { %>
+                                                            <i class="fas fa-check-circle"></i>
+                                                        <% } else if (message.media_analysis.verification.verification_status === 'SUSPICIOUS') { %>
+                                                            <i class="fas fa-exclamation-triangle"></i>
+                                                        <% } else { %>
+                                                            <i class="fas fa-times-circle"></i>
+                                                        <% } %>
+                                                        <%= message.media_analysis.verification.verification_status %>
+                                                        <% if (message.media_analysis.verification.authenticity_score) { %>
+                                                            (<%= message.media_analysis.verification.authenticity_score %>/10)
+                                                        <% } %>
+                                                    </div>
+                                                <% } %>
+                                                <% if (message.media_url) { %>
+                                                    <a href="/<%= message.media_url %>" target="_blank" style="color: var(--primary); text-decoration: none; font-size: 0.875rem;">
+                                                        <i class="fas fa-external-link-alt"></i> View Original PDF
+                                                    </a>
+                                                <% } %>
+                                            </div>
+                                        <% } else if (message.media_analysis.type === 'image') { %>
+                                            <% if (message.media_url) { %>
+                                                <img src="/<%= message.media_url %>" alt="User uploaded image" class="image-viewer" onclick="openModal(this.src)">
+                                            <% } %>
+                                            <% if (message.media_analysis.analysis_summary) { %>
+                                                <div class="pdf-analysis">
+                                                    <strong>Image Description:</strong> <%= message.media_analysis.analysis_summary %>
+                                                </div>
+                                            <% } %>
+                                            <% if (message.media_analysis.verification && message.media_analysis.verification.verification_status && message.media_analysis.verification.verification_status !== 'UNKNOWN') { %>
+                                                <div class="verification-badge verification-<%= message.media_analysis.verification.verification_status.toLowerCase() %>">
+                                                    <% if (message.media_analysis.verification.verification_status === 'GENUINE') { %>
+                                                        <i class="fas fa-check-circle"></i>
+                                                    <% } else if (message.media_analysis.verification.verification_status === 'SUSPICIOUS') { %>
+                                                        <i class="fas fa-exclamation-triangle"></i>
+                                                    <% } else { %>
+                                                        <i class="fas fa-times-circle"></i>
+                                                    <% } %>
+                                                    <%= message.media_analysis.verification.verification_status %>
+                                                    <% if (message.media_analysis.verification.authenticity_score) { %>
+                                                        (<%= message.media_analysis.verification.authenticity_score %>/10)
+                                                    <% } %>
+                                                </div>
+                                            <% } %>
+                                        <% } else if (message.media_analysis.type === 'audio') { %>
+                                            <% if (message.media_url) { %>
+                                                <audio controls class="audio-player">
+                                                    <source src="/<%= message.media_url %>" type="audio/ogg">
+                                                    Your browser does not support the audio element.
+                                                </audio>
+                                            <% } %>
+                                            <% if (message.media_analysis.extracted_text) { %>
+                                                <div class="transcription">
+                                                    <strong>Transcription:</strong> "<%= message.media_analysis.extracted_text %>"
+                                                </div>
+                                            <% } %>
+                                        <% } %>
+                                        <% if (message.media_analysis.file_info && message.media_analysis.file_info.original_name) { %>
+                                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem;">
+                                                <i class="fas fa-info-circle"></i>
+                                                File: <%= message.media_analysis.file_info.original_name %>
+                                                <% if (message.media_analysis.file_info.file_size) { %>
+                                                    • Size: <%= (message.media_analysis.file_info.file_size / 1024).toFixed(1) %>KB
+                                                <% } %>
+                                            </div>
+                                        <% } %>
+                                    </div>
+                                </div>
+                            <% } else if (message.media_url && !message.media_analysis) { %>
+                                <!-- Fallback for messages with media but no analysis -->
+                                <div class="media-container">
+                                    <div class="media-header">
+                                        <i class="fas fa-paperclip"></i>
+                                        Media Attachment
+                                    </div>
+                                    <div class="media-content">
+                                        <% if (message.media_type === 'image') { %>
+                                            <img src="/<%= message.media_url %>" alt="User uploaded image" class="image-viewer" onclick="openModal(this.src)">
+                                        <% } else if (message.media_type === 'audio') { %>
+                                            <audio controls class="audio-player">
+                                                <source src="/<%= message.media_url %>" type="audio/ogg">
+                                                Your browser does not support the audio element.
+                                            </audio>
+                                        <% } else if (message.media_type === 'document') { %>
+                                            <a href="/<%= message.media_url %>" target="_blank" style="color: var(--primary); text-decoration: none;">
+                                                <i class="fas fa-file"></i> View Document
+                                            </a>
+                                        <% } %>
+                                    </div>
+                                </div>
+                            <% } %>
                         </div>
                         <div class="message-time">
                             <%= new Date(message.createdAt).toLocaleString() %>
@@ -431,11 +685,39 @@
         </div>
     </div>
 
+    <!-- Image Modal -->
+    <div id="imageModal" class="modal">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <div class="modal-content">
+            <img id="modalImage" src="" alt="Full size image">
+        </div>
+    </div>
+
     <script>
         // Auto-scroll to bottom
         const messagesContainer = document.querySelector('.messages-container');
         if (messagesContainer && messagesContainer.children.length > 1) {
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // Image modal functions
+        function openModal(imageSrc) {
+            const modal = document.getElementById('imageModal');
+            const modalImg = document.getElementById('modalImage');
+            modal.style.display = 'block';
+            modalImg.src = imageSrc;
+        }
+
+        function closeModal() {
+            document.getElementById('imageModal').style.display = 'none';
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('imageModal');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
         }
     </script>
 </body>

@@ -77,6 +77,31 @@ const messageSchema = new mongoose.Schema({
     media_url: { type: String },
     whatsapp_message_id: { type: String },
     phone_number: { type: String, required: true },
+    // Enhanced Media Analysis
+    media_analysis: {
+        type: { type: String, enum: ['pdf', 'image', 'audio'] },
+        extracted_text: { type: String },
+        analysis_summary: { type: String },
+        key_details: {
+            amount: { type: String },
+            date: { type: String },
+            company: { type: String },
+            document_type: { type: String },
+            service_type: { type: String },
+            due_date: { type: String },
+            account_number: { type: String }
+        },
+        file_info: {
+            original_name: { type: String },
+            file_size: { type: Number },
+            mime_type: { type: String }
+        },
+        verification: {
+            authenticity_score: { type: Number, min: 0, max: 10 },
+            verification_status: { type: String, enum: ['GENUINE', 'SUSPICIOUS', 'FAKE', 'UNKNOWN'] },
+            issues_found: [{ type: String }]
+        }
+    },
     // MVP: Conversation Intelligence
     intent: { type: String, enum: ['query', 'complaint', 'need_action', 'feedback'] },
     sentiment: { type: String, enum: ['positive', 'neutral', 'negative'] },
@@ -168,7 +193,7 @@ const usageRecordSchema = new mongoose.Schema({
     services_used: [{
         service_type: { 
             type: String, 
-            enum: ['sentiment', 'intent', 'vision', 'stt', 'agent_process', 'resolution_analysis'], 
+            enum: ['sentiment', 'intent', 'vision', 'stt', 'agent_process', 'resolution_analysis', 'pdf_analysis', 'bill_verification'], 
             required: true 
         },
         model_name: { type: String, required: true },

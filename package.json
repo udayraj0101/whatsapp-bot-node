@@ -2,10 +2,10 @@
   "name": "whatsapp-bot",
   "version": "1.0.0",
   "description": "WhatsApp Business Bot using Express.js",
-  "main": "whatsapp_bot.js",
+  "main": "app.js",
   "scripts": {
-    "start": "node whatsapp_bot.js",
-    "dev": "nodemon whatsapp_bot.js",
+    "start": "node app.js",
+    "dev": "nodemon app.js",
     "setup": "node setup_vendor.js",
     "validate": "node validate_system.js"
   },
@@ -19,7 +19,8 @@
     "form-data": "^4.0.0",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^8.0.0",
-    "openai": "^6.15.0"
+    "openai": "^6.15.0",
+    "pdf-parse": "^1.1.4"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
