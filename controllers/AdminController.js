@@ -47,7 +47,18 @@ class AdminController {
     // Vendor management
     static async vendorList(req, res) {
         try {
-            const vendors = await Vendor.find({}).sort({ createdAt: -1 }).lean();
+            const page = parseInt(req.query.page) || 1;
+            const limit = 20;
+            const skip = (page - 1) * limit;
+            
+            const totalVendors = await Vendor.countDocuments({});
+            const totalPages = Math.ceil(totalVendors / limit);
+            
+            const vendors = await Vendor.find({})
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .lean();
             
             // Get additional stats for each vendor
             const vendorsWithStats = await Promise.all(vendors.map(async (vendor) => {
@@ -66,7 +77,17 @@ class AdminController {
                 };
             }));
             
-            res.render('admin/vendors', { currentPage: 'admin', vendors: vendorsWithStats });
+            res.render('admin/vendors', { 
+                currentPage: 'admin', 
+                vendors: vendorsWithStats,
+                pagination: {
+                    page,
+                    totalPages,
+                    totalItems: totalVendors,
+                    hasNext: page < totalPages,
+                    hasPrev: page > 1
+                }
+            });
         } catch (error) {
             console.error('Admin vendors list error:', error);
             res.status(500).send('Error loading vendors');
@@ -281,9 +302,17 @@ class AdminController {
     // Top-up history
     static async topupHistory(req, res) {
         try {
+            const page = parseInt(req.query.page) || 1;
+            const limit = 50;
+            const skip = (page - 1) * limit;
+            
+            const totalTopups = await WalletTransaction.countDocuments({ transaction_type: 'credit' });
+            const totalPages = Math.ceil(totalTopups / limit);
+            
             const topups = await WalletTransaction.find({ transaction_type: 'credit' })
                 .sort({ createdAt: -1 })
-                .limit(100);
+                .skip(skip)
+                .limit(limit);
 
             const vendorIds = [...new Set(topups.map(t => t.vendor_id))];
             const vendors = await Vendor.find({ vendor_id: { $in: vendorIds } }).lean();
@@ -297,7 +326,14 @@ class AdminController {
 
             res.render('admin/topup-history', {
                 currentPage: 'admin',
-                topups: topupsWithVendor
+                topups: topupsWithVendor,
+                pagination: {
+                    page,
+                    totalPages,
+                    totalItems: totalTopups,
+                    hasNext: page < totalPages,
+                    hasPrev: page > 1
+                }
             });
         } catch (error) {
             console.error('Topup history error:', error);
@@ -308,9 +344,17 @@ class AdminController {
     // Billing history
     static async billingHistory(req, res) {
         try {
+            const page = parseInt(req.query.page) || 1;
+            const limit = 50;
+            const skip = (page - 1) * limit;
+            
+            const totalBillings = await UsageRecord.countDocuments({});
+            const totalPages = Math.ceil(totalBillings / limit);
+            
             const billings = await UsageRecord.find({})
                 .sort({ charged_at: -1 })
-                .limit(100);
+                .skip(skip)
+                .limit(limit);
 
             const vendorIds = [...new Set(billings.map(b => b.vendor_id))];
             const vendors = await Vendor.find({ vendor_id: { $in: vendorIds } }).lean();
@@ -324,7 +368,14 @@ class AdminController {
 
             res.render('admin/billing-history', {
                 currentPage: 'admin',
-                billings: billingsWithVendor
+                billings: billingsWithVendor,
+                pagination: {
+                    page,
+                    totalPages,
+                    totalItems: totalBillings,
+                    hasNext: page < totalPages,
+                    hasPrev: page > 1
+                }
             });
         } catch (error) {
             console.error('Billing history error:', error);

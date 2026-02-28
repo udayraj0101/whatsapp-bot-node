@@ -134,7 +134,7 @@
                             </div>
                             <div class="usage-details">
                                 <div class="usage-phone"><%= usage.phone_number %></div>
-                                <div class="usage-window"><%= usage.conversation_window_type.replace('_', ' ') %></div>
+                                <div class="usage-window"><%= usage.conversation_window ? usage.conversation_window.replace('_', ' ') : 'N/A' %></div>
                             </div>
                         </div>
                     <% }) %>

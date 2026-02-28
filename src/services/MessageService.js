@@ -584,10 +584,43 @@ ${agentContextData.context}`;
                 .lean();
             
             // Convert to conversation history format (reverse to chronological order)
-            const conversationHistory = recentMessages.reverse().map(msg => ({
-                role: msg.message_type === 'user' ? 'user' : 'assistant',
-                content: msg.content.length > 1000 ? msg.content.substring(0, 1000) + '...' : msg.content
-            }));
+            const conversationHistory = recentMessages.reverse().map(msg => {
+                let content;
+                
+                // Preserve PDF/media context with higher limit
+                if (msg.media_analysis) {
+                    // For media messages, include analysis summary + truncated content
+                    const mediaType = msg.media_analysis.type.toUpperCase();
+                    const summary = msg.media_analysis.analysis_summary || '';
+                    const keyDetails = msg.media_analysis.key_details ? 
+                        Object.entries(msg.media_analysis.key_details)
+                            .filter(([k, v]) => v && v !== '')
+                            .map(([k, v]) => `${k}: ${v}`)
+                            .join(', ') : '';
+                    
+                    // Build comprehensive media context
+                    let mediaContext = `[${mediaType} ANALYSIS: ${summary}]`;
+                    if (keyDetails) {
+                        mediaContext += ` [KEY DETAILS: ${keyDetails}]`;
+                    }
+                    
+                    // Add original message if not too long
+                    const originalContent = msg.content.replace(/\[PDF Analysis:.*?\]/g, '').replace(/\[Document Type:.*?\]/g, '').replace(/\[Key Details:.*?\]/g, '').trim();
+                    if (originalContent && originalContent.length < 500) {
+                        mediaContext += ` ${originalContent}`;
+                    }
+                    
+                    content = mediaContext.length > 2000 ? mediaContext.substring(0, 2000) + '...' : mediaContext;
+                } else {
+                    // For text messages, use standard truncation
+                    content = msg.content.length > 1000 ? msg.content.substring(0, 1000) + '...' : msg.content;
+                }
+                
+                return {
+                    role: msg.message_type === 'user' ? 'user' : 'assistant',
+                    content: content
+                };
+            });
             
             return conversationHistory;
         } catch (error) {

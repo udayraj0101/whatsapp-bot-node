@@ -305,22 +305,24 @@ async function createOrGetChatroom(vendorId, businessId, agentId, threadId, phon
     } catch (error) {
         // Handle duplicate key error gracefully
         if (error.code === 11000) {
-            console.log(`[CHATROOM] Duplicate key error, fetching existing chatroom for ${threadId}`);
-            const existingChatroom = await Chatroom.findOne({ thread_id: threadId, vendor_id: vendorId });
+            console.log(`[CHATROOM] Duplicate key error, fetching existing chatroom for ${phoneNumber}`);
+            
+            // Try to find by thread_id first
+            let existingChatroom = await Chatroom.findOne({ thread_id: threadId, vendor_id: vendorId });
             if (existingChatroom) {
                 return existingChatroom;
             }
-            // If still null, create with unique thread_id
-            const uniqueThreadId = `${threadId}_${Date.now()}`;
-            const chatroom = new Chatroom({
-                vendor_id: vendorId,
-                business_id: businessId,
-                agent_id: agentId,
-                thread_id: uniqueThreadId,
-                phone_number: phoneNumber,
-                sla_deadline: new Date(Date.now() + 24 * 60 * 60 * 1000)
-            });
-            return await chatroom.save();
+            
+            // If not found, find by phone_number (most recent)
+            existingChatroom = await Chatroom.findOne({ 
+                phone_number: phoneNumber, 
+                vendor_id: vendorId 
+            }).sort({ createdAt: -1 });
+            
+            if (existingChatroom) {
+                console.log(`[CHATROOM] Reusing existing chatroom for ${phoneNumber} to prevent duplicates`);
+                return existingChatroom;
+            }
         }
         console.error('[CHATROOM] Error creating chatroom:', error);
         throw error;

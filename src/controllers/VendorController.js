@@ -114,7 +114,17 @@ class VendorController {
 
     async conversations(req, res) {
         try {
-            const chatrooms = await Chatroom.find({ vendor_id: req.vendorId }).sort({ updatedAt: -1 });
+            const page = parseInt(req.query.page) || 1;
+            const limit = 20;
+            const skip = (page - 1) * limit;
+            
+            const totalChatrooms = await Chatroom.countDocuments({ vendor_id: req.vendorId });
+            const totalPages = Math.ceil(totalChatrooms / limit);
+            
+            const chatrooms = await Chatroom.find({ vendor_id: req.vendorId })
+                .sort({ updatedAt: -1 })
+                .skip(skip)
+                .limit(limit);
 
             const { calculateConversationSentiment, calculateSLAStatus } = require('../utils/analytics');
             const chatroomsWithInsights = await Promise.all(chatrooms.map(async (chatroom) => {
@@ -156,7 +166,14 @@ class VendorController {
 
             res.render('conversations', {
                 chatrooms: chatroomsWithInsights,
-                currentPage: 'conversations'
+                currentPage: 'conversations',
+                pagination: {
+                    page,
+                    totalPages,
+                    totalItems: totalChatrooms,
+                    hasNext: page < totalPages,
+                    hasPrev: page > 1
+                }
             });
         } catch (error) {
             res.status(500).send('Error loading conversations');
