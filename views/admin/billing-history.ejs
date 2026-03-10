@@ -46,8 +46,15 @@
                                 <td class="amount">$<%= billing.base_cost_usd_micro ? (billing.base_cost_usd_micro / 1000000).toFixed(6) : '0.000000' %></td>
                                 <td class="amount final">$<%= billing.final_cost_usd_micro ? (billing.final_cost_usd_micro / 1000000).toFixed(6) : '0.000000' %></td>
                                 <td>
-                                    <span class="window-type <%= billing.conversation_window_type || 'unknown' %>">
-                                        <%= (billing.conversation_window_type || 'unknown').replace('_', ' ') %>
+                                    <span class="window-type <%= billing.conversation_window || 'unknown' %>">
+                                        <% 
+                                        let windowDisplay = billing.conversation_window || 'unknown';
+                                        if (windowDisplay === 'new_user_4h') windowDisplay = 'New User (0-4h)';
+                                        else if (windowDisplay === 'existing_user_20h') windowDisplay = 'Existing (4-24h)';
+                                        else if (windowDisplay === 'existing_user_24h+') windowDisplay = 'Existing (24h+)';
+                                        else windowDisplay = 'Unknown';
+                                        %>
+                                        <%= windowDisplay %>
                                     </span>
                                 </td>
                             </tr>
@@ -127,25 +134,12 @@
 
 .window-type {
     padding: 0.3rem 0.6rem;
+    border: 1px solid var(--border-color);
     border-radius: 6px;
     font-size: 0.8rem;
     font-weight: 500;
-    text-transform: capitalize;
-}
-
-.window-type.new_user_4h {
-    background: var(--success-light);
-    color: var(--success-color);
-}
-
-.window-type.existing_user_20h {
-    background: var(--warning-light);
-    color: var(--warning-color);
-}
-
-.window-type.existing_user_24h {
-    background: var(--error-light);
-    color: var(--error-color);
+    background: var(--background-color);
+    color: var(--text-secondary);
 }
 
 .empty-state {

@@ -4,14 +4,48 @@ const { getFixedTags } = require('../../ai/tagging');
 const { getSLAStats, calculateSLAStatus } = require('../../services/sla');
 
 module.exports = function(app) {
+    // 📝 Manual Resolution API Endpoint
+    app.post('/api/chatroom/:id/status', requireAuth, async (req, res) => {
+        try {
+            const { status } = req.body;
+            const chatroomId = req.params.id;
+            
+            if (status === 'closed') {
+                const { closeConversation } = require('../../services/sla');
+                await closeConversation(chatroomId, req.vendorId, 'manual');
+                res.json({ success: true, message: 'Conversation closed successfully' });
+            } else {
+                // For other status updates
+                await Chatroom.findOneAndUpdate(
+                    { _id: chatroomId, vendor_id: req.vendorId },
+                    { status, manually_closed: false }
+                );
+                res.json({ success: true, message: 'Status updated successfully' });
+            }
+        } catch (error) {
+            console.error('[API] Error updating conversation status:', error);
+            res.status(500).json({ success: false, error: error.message });
+        }
+    });
+
     // SLA Management Route (Protected)
     app.get('/sla', requireAuth, async (req, res) => {
         try {
+            const page = parseInt(req.query.page) || 1;
+            const limit = 20;
+            const skip = (page - 1) * limit;
+            
             const slaStats = await getSLAStats(req.vendorId);
             
-            const chatrooms = await Chatroom.find({ vendor_id: req.vendorId }).sort({ updatedAt: -1 });
+            const totalChatrooms = await Chatroom.countDocuments({ vendor_id: req.vendorId });
+            const totalPages = Math.ceil(totalChatrooms / limit);
             
-            const { calculateSLAStatus } = require('../../services/sla');
+            const chatrooms = await Chatroom.find({ vendor_id: req.vendorId })
+                .sort({ updatedAt: -1 })
+                .skip(skip)
+                .limit(limit);
+            
+            const { calculateSLAStatus, getEffectiveSLAStatus } = require('../../services/sla');
             const allConversations = [];
             const overdueConversations = [];
             const dueSoonConversations = [];
@@ -28,7 +62,8 @@ module.exports = function(app) {
                     intent: { $exists: true }
                 }).sort({ createdAt: -1 });
                 
-                const slaInfo = calculateSLAStatus(chatroom, firstUserMessage);
+                // 🎯 Use unified SLA status
+                const slaInfo = getEffectiveSLAStatus(chatroom, firstUserMessage);
                 
                 const conversationData = {
                     ...chatroom.toObject(),
@@ -50,7 +85,15 @@ module.exports = function(app) {
                 allConversations,
                 overdueConversations,
                 dueSoonConversations,
-                currentPage: 'sla' 
+                currentPage: 'sla',
+                vendor: req.vendor,
+                pagination: {
+                    page,
+                    totalPages,
+                    totalItems: totalChatrooms,
+                    hasNext: page < totalPages,
+                    hasPrev: page > 1
+                }
             });
         } catch (error) {
             console.error('SLA page error:', error);
@@ -63,10 +106,20 @@ module.exports = function(app) {
         try {
             const { FeedbackRequest } = require('../../models/feedback');
             
+            const page = parseInt(req.query.page) || 1;
+            const limit = 20;
+            const skip = (page - 1) * limit;
+            
+            const totalFeedbacksCount = await FeedbackRequest.countDocuments({ 
+                vendor_id: req.vendorId,
+                status: 'responded'
+            });
+            const totalPages = Math.ceil(totalFeedbacksCount / limit);
+            
             const feedbacks = await FeedbackRequest.find({ 
                 vendor_id: req.vendorId,
                 status: 'responded'
-            }).sort({ createdAt: -1 }).limit(50);
+            }).sort({ createdAt: -1 }).skip(skip).limit(limit);
             
             const totalFeedbacks = feedbacks.length;
             const averageRating = totalFeedbacks > 0 ? 
@@ -91,7 +144,15 @@ module.exports = function(app) {
             res.render('feedback', { 
                 feedbacks,
                 analytics,
-                currentPage: 'feedback' 
+                currentPage: 'feedback',
+                vendor: req.vendor,
+                pagination: {
+                    page,
+                    totalPages,
+                    totalItems: totalFeedbacksCount,
+                    hasNext: page < totalPages,
+                    hasPrev: page > 1
+                }
             });
         } catch (error) {
             console.error('Feedback page error:', error);
@@ -157,7 +218,8 @@ module.exports = function(app) {
                 totalSpentINR,
                 avgCostINR,
                 usageSummary: usageSummaryArray,
-                currentPage: 'wallet'
+                currentPage: 'wallet',
+                vendor: req.vendor
             });
         } catch (error) {
             console.error('Wallet page error:', error);
@@ -169,7 +231,11 @@ module.exports = function(app) {
     app.get('/agents', requireAuth, async (req, res) => {
         try {
             const agents = await AgentContext.find({ vendor_id: req.vendorId }).sort({ updatedAt: -1 });
-            res.render('agents', { agents, currentPage: 'agents' });
+            res.render('agents', { 
+                agents, 
+                currentPage: 'agents',
+                vendor: req.vendor
+            });
         } catch (error) {
             res.status(500).send('Error loading agents');
         }
@@ -198,7 +264,11 @@ module.exports = function(app) {
                 }
             };
 
-            res.render('analytics', { analytics, currentPage: 'analytics' });
+            res.render('analytics', { 
+                analytics, 
+                currentPage: 'analytics',
+                vendor: req.vendor
+            });
         } catch (error) {
             res.status(500).send('Error loading analytics');
         }
@@ -211,7 +281,8 @@ module.exports = function(app) {
             res.render('tags', {
                 chatrooms,
                 availableTags,
-                currentPage: 'tags'
+                currentPage: 'tags',
+                vendor: req.vendor
             });
         } catch (error) {
             res.status(500).send('Error loading tags');
@@ -228,7 +299,8 @@ module.exports = function(app) {
                 businessId,
                 agentId,
                 agent: agentContext,
-                currentPage: 'agents'
+                currentPage: 'agents',
+                vendor: req.vendor
             });
         } catch (error) {
             console.error('Agent edit page error:', error);

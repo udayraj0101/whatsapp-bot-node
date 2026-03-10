@@ -4,6 +4,26 @@ const { Chatroom, Message } = require('../models/database');
 const SLA_HOURS = 24;
 const SLA_MILLISECONDS = SLA_HOURS * 60 * 60 * 1000;
 
+// 🎯 UNIFIED SLA STATUS - Single Source of Truth
+function getEffectiveSLAStatus(chatroom, firstUserMessage) {
+    // Priority 1: Manual closure overrides everything
+    if (chatroom.manually_closed) {
+        return {
+            status: 'closed',
+            reason: chatroom.closed_reason || 'manual',
+            isManual: true,
+            timeElapsed: 0,
+            slaDeadline: chatroom.sla_deadline,
+            isOverdue: false,
+            hoursRemaining: 0,
+            hoursOverdue: 0
+        };
+    }
+    
+    // Priority 2: Calculate real-time status
+    return calculateSLAStatus(chatroom, firstUserMessage);
+}
+
 // Calculate SLA status for a chatroom
 function calculateSLAStatus(chatroom, firstUserMessage) {
     const now = new Date();
@@ -135,8 +155,37 @@ async function getSLAStats(vendorId) {
     }
 }
 
-// Change conversation status manually
-async function updateConversationStatus(chatroomId, newStatus, vendorId) {
+// 🔄 Auto-sync database status with calculated status
+async function syncSLAStatus(chatroomId) {
+    try {
+        const chatroom = await Chatroom.findById(chatroomId);
+        if (!chatroom) return null;
+        
+        const firstUserMessage = await Message.findOne({
+            chatroom_id: chatroomId,
+            message_type: 'user'
+        }).sort({ createdAt: 1 });
+        
+        const effectiveStatus = getEffectiveSLAStatus(chatroom, firstUserMessage);
+        
+        // Update database if status changed (but don't override manual closures)
+        if (!chatroom.manually_closed && chatroom.status !== effectiveStatus.status) {
+            await Chatroom.findByIdAndUpdate(chatroomId, {
+                status: effectiveStatus.status,
+                sla_deadline: effectiveStatus.slaDeadline
+            });
+            console.log(`[SLA] Auto-updated ${chatroomId} status: ${chatroom.status} → ${effectiveStatus.status}`);
+        }
+        
+        return effectiveStatus;
+    } catch (error) {
+        console.error('[SLA] Error syncing status:', error);
+        return null;
+    }
+}
+
+// 📝 Manual conversation closure
+async function closeConversation(chatroomId, vendorId, reason = 'manual') {
     try {
         const chatroom = await Chatroom.findOne({ 
             _id: chatroomId, 
@@ -144,23 +193,54 @@ async function updateConversationStatus(chatroomId, newStatus, vendorId) {
         });
         
         if (!chatroom) {
-            throw new Error('Chatroom not found');
+            throw new Error('Conversation not found');
         }
         
-        chatroom.status = newStatus;
-        await chatroom.save();
+        await Chatroom.findByIdAndUpdate(chatroomId, {
+            status: 'closed',
+            manually_closed: true,
+            closed_reason: reason,
+            closed_at: new Date()
+        });
         
-        return chatroom;
+        console.log(`[SLA] Manually closed conversation ${chatroomId} - Reason: ${reason}`);
+        return true;
     } catch (error) {
-        console.error('Error updating conversation status:', error);
+        console.error('[SLA] Error closing conversation:', error);
         throw error;
+    }
+}
+
+// 🤖 Auto-close based on AI resolution analysis
+async function autoCloseIfResolved(chatroomId, resolutionAnalysis) {
+    try {
+        // Auto-close criteria: High confidence resolution
+        if (resolutionAnalysis.resolved && resolutionAnalysis.confidence >= 0.8) {
+            await Chatroom.findByIdAndUpdate(chatroomId, {
+                status: 'closed',
+                manually_closed: false,
+                closed_reason: 'auto_resolution',
+                closed_at: new Date()
+            });
+            
+            console.log(`[SLA] Auto-closed conversation ${chatroomId} - High confidence resolution (${resolutionAnalysis.confidence})`);
+            return true;
+        }
+        
+        return false;
+    } catch (error) {
+        console.error('[SLA] Error auto-closing conversation:', error);
+        return false;
     }
 }
 
 module.exports = {
     calculateSLAStatus,
+    getEffectiveSLAStatus,
+    syncSLAStatus,
+    closeConversation,
+    autoCloseIfResolved,
     updateChatroomSLA,
     getSLAStats,
-    updateConversationStatus,
     SLA_HOURS
 };

@@ -144,13 +144,22 @@ class BillingEngine {
         
         // 2. Check sufficient balance
         if (wallet.balance_usd_micro < costCalculation.finalCostMicro) {
-            throw new Error(`Insufficient balance. Required: $${(costCalculation.finalCostMicro/1000000).toFixed(6)}, Available: $${(wallet.balance_usd_micro/1000000).toFixed(6)}`);
+            const required = (costCalculation.finalCostMicro / 1000000).toFixed(6);
+            const available = (wallet.balance_usd_micro / 1000000).toFixed(6);
+            throw new Error(`Insufficient balance. Required: $${required}, Available: $${available}`);
         }
         
         // 3. Deduct from wallet
         wallet.balance_usd_micro -= costCalculation.finalCostMicro;
         wallet.last_updated = new Date();
         await wallet.save();
+        
+        // 🔥 FIX: Low balance alert
+        const balanceUsd = wallet.balance_usd_micro / 1000000;
+        if (balanceUsd <= 5 && balanceUsd > 0) {
+            console.warn(`⚠️ [BILLING] LOW BALANCE: Vendor ${vendorId} has $${balanceUsd.toFixed(2)} remaining`);
+            // TODO: Trigger email/SMS notification
+        }
         
         // 4. Create usage record
         const usageRecord = new UsageRecord({

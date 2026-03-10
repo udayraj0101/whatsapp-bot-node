@@ -58,7 +58,8 @@ class VendorController {
             };
 
             // Get AI insights for each chatroom
-            const { calculateConversationSentiment, calculateSLAStatus } = require('../utils/analytics');
+            const { calculateConversationSentiment } = require('../utils/analytics');
+            const { getEffectiveSLAStatus } = require('../../services/sla');
             const chatroomsWithInsights = await Promise.all(chatrooms.map(async (chatroom) => {
                 const messages = await Message.find({
                     vendor_id: req.vendorId,
@@ -77,16 +78,13 @@ class VendorController {
 
                 const conversationSentiment = calculateConversationSentiment(sentimentCounts);
 
-                let slaInfo = { status: 'on_time', timeRemaining: '24h' };
-                try {
-                    const firstUserMessage = await Message.findOne({
-                        chatroom_id: chatroom._id,
-                        message_type: 'user'
-                    }).sort({ createdAt: 1 });
-                    slaInfo = calculateSLAStatus(chatroom, firstUserMessage);
-                } catch (slaError) {
-                    console.log('[SLA] Function not available, using default');
-                }
+                // 🎯 Use unified SLA status
+                const firstUserMessage = await Message.findOne({
+                    chatroom_id: chatroom._id,
+                    message_type: 'user'
+                }).sort({ createdAt: 1 });
+                
+                const slaInfo = getEffectiveSLAStatus(chatroom, firstUserMessage);
 
                 return {
                     ...chatroom.toObject(),
@@ -104,7 +102,8 @@ class VendorController {
             res.render('chatrooms', {
                 chatrooms: chatroomsWithInsights,
                 analytics,
-                currentPage: 'dashboard'
+                currentPage: 'dashboard',
+                vendor: req.vendor
             });
         } catch (error) {
             console.error('[DASHBOARD] Error:', error);
@@ -126,7 +125,8 @@ class VendorController {
                 .skip(skip)
                 .limit(limit);
 
-            const { calculateConversationSentiment, calculateSLAStatus } = require('../utils/analytics');
+            const { calculateConversationSentiment } = require('../utils/analytics');
+            const { getEffectiveSLAStatus } = require('../../services/sla');
             const chatroomsWithInsights = await Promise.all(chatrooms.map(async (chatroom) => {
                 const messages = await Message.find({
                     vendor_id: req.vendorId,
@@ -150,7 +150,7 @@ class VendorController {
                     message_type: 'user'
                 }).sort({ createdAt: 1 });
 
-                const slaInfo = calculateSLAStatus(chatroom, firstUserMessage);
+                const slaInfo = getEffectiveSLAStatus(chatroom, firstUserMessage);
 
                 return {
                     ...chatroom.toObject(),
@@ -167,6 +167,7 @@ class VendorController {
             res.render('conversations', {
                 chatrooms: chatroomsWithInsights,
                 currentPage: 'conversations',
+                vendor: req.vendor,
                 pagination: {
                     page,
                     totalPages,
@@ -204,8 +205,9 @@ class VendorController {
                 message_type: 'user'
             }).sort({ createdAt: 1 });
 
-            const { calculateConversationSentiment, calculateSLAStatus } = require('../utils/analytics');
-            const slaInfo = calculateSLAStatus(chatroom, firstUserMessage);
+            const { calculateConversationSentiment } = require('../utils/analytics');
+            const { getEffectiveSLAStatus } = require('../../services/sla');
+            const slaInfo = getEffectiveSLAStatus(chatroom, firstUserMessage);
 
             const insights = {
                 totalMessages: messages.length,
@@ -230,7 +232,12 @@ class VendorController {
                 slaInfo
             };
 
-            res.render('chatroom', { chatroom, messages, insights });
+            res.render('chatroom', { 
+                chatroom, 
+                messages, 
+                insights, 
+                vendor: req.vendor 
+            });
         } catch (error) {
             res.status(500).send('Error loading chatroom');
         }

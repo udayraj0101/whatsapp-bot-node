@@ -9,6 +9,7 @@ const { analyzeSentiment } = require('../../ai/sentiment');
 const { autoTagFromIntent } = require('../../ai/tagging');
 const WhatsAppService = require('./WhatsAppService');
 const BillingEngine = require('../../billing/BillingEngine');
+const tokenOptimizer = require('../utils/tokenOptimizer');
 
 class MessageService {
     constructor() {
@@ -101,9 +102,40 @@ class MessageService {
             const agentContextData = await getAgentContext(vendor.vendor_id, businessId, agentId);
             
             // Get optimized conversation history
-            const conversationHistory = await this.getOptimizedHistory(chatroom._id, 8);
-            console.log(`[HISTORY] Retrieved ${conversationHistory.length} previous messages for context`);
+            const rawHistory = await this.getOptimizedHistory(chatroom._id, 8);
+            console.log(`[HISTORY] Retrieved ${rawHistory.length} previous messages for context`);
             
+            // ⚡ OPTIMIZATION: Apply token budgeting
+            const conversationHistory = tokenOptimizer.optimizeHistory(rawHistory);
+            const estimatedTokens = tokenOptimizer.estimateTokens(
+                conversationHistory.map(m => m.content).join(' ')
+            );
+            console.log(`[TOKEN_OPTIMIZER] History uses ~${estimatedTokens} tokens`);
+            
+            // 🔥 FIX: Include media analysis in current message
+            let enhancedMessage = messageText;
+            if (userMessage.media_analysis && userMessage.media_analysis.analysis_summary) {
+                const analysis = userMessage.media_analysis;
+                enhancedMessage = `[${analysis.type.toUpperCase()} ANALYSIS: ${analysis.analysis_summary}]`;
+                
+                if (analysis.key_details) {
+                    const details = Object.entries(analysis.key_details)
+                        .filter(([k, v]) => v && v !== '')
+                        .map(([k, v]) => `${k}: ${v}`)
+                        .join(', ');
+                    if (details) {
+                        enhancedMessage += ` [Details: ${details}]`;
+                    }
+                }
+                
+                // Add original message if exists
+                const originalMsg = messageText.replace(/\[Media received:.*?\]/g, '').trim();
+                if (originalMsg && originalMsg.length > 0) {
+                    enhancedMessage += ` | User message: ${originalMsg}`;
+                }
+                
+                console.log(`[MEDIA_CONTEXT] Enhanced message with analysis for agent`);
+            }
             // Enhanced context with PDF analysis capabilities
             let contextText;
             if (agentContextData) {
@@ -134,9 +166,9 @@ ${agentContextData.context}`;
                 business_id: businessId,
                 agent_id: agentId,
                 thread_id: from,
-                user_message: messageText,
+                user_message: enhancedMessage, // 🔥 Use enhanced message with media analysis
                 context: contextText,
-                conversation_history: conversationHistory,  // Add conversation history
+                conversation_history: conversationHistory,
                 tools: [
                     {
                         name: "submit_feedback",
@@ -206,6 +238,15 @@ ${agentContextData.context}`;
                 aiUsageData.push(botMessage.resolutionUsageData);
             }
 
+            // 🤖 Auto-close conversation if AI resolved with high confidence
+            if (botMessage.resolution_analysis) {
+                const { autoCloseIfResolved } = require('../../services/sla');
+                const autoClosed = await autoCloseIfResolved(chatroom._id, botMessage.resolution_analysis);
+                if (autoClosed) {
+                    console.log(`[SLA] Auto-closed conversation ${chatroom._id} due to high confidence resolution`);
+                }
+            }
+
             // Process billing
             try {
                 if (aiUsageData.length > 0) {
@@ -225,6 +266,19 @@ ${agentContextData.context}`;
                 }
             } catch (billingError) {
                 console.error('[BILLING] Billing failed:', billingError.message);
+                
+                // 🔥 FIX: Handle insufficient balance gracefully
+                if (billingError.message.includes('Insufficient balance')) {
+                    console.error(`[BILLING] ⚠️ LOW BALANCE ALERT for vendor ${vendor.vendor_id}`);
+                    
+                    // TODO: Send email/SMS notification to vendor
+                    // For now, log critical alert
+                    console.error(`[BILLING] 🚨 CRITICAL: Vendor ${vendor.company_name} has insufficient balance!`);
+                    console.error(`[BILLING] Service will continue but vendor needs to top up immediately.`);
+                    
+                    // Optional: Send WhatsApp notification to vendor's registered number
+                    // await this.notifyVendorLowBalance(vendor);
+                }
             }
 
         } catch (error) {
@@ -447,40 +501,47 @@ ${agentContextData.context}`;
                 }
             }
 
-            // AI analysis for user messages
+            // AI analysis for user messages (skip for media-only messages to save tokens)
             if (messageType === 'user' && processedContent && !processedContent.includes('[Media received:')) {
-                const [detectedIntent, detectedSentiment] = await Promise.all([
-                    detectIntent(processedContent).catch(err => ({ intent: null, tokenUsage: null })),
-                    analyzeSentiment(processedContent).catch(err => ({ sentiment: null, tokenUsage: null }))
-                ]);
+                // Only run intent/sentiment for text messages, not media
+                const hasText = processedContent.replace(/\[.*?\]/g, '').trim().length > 10;
+                
+                if (hasText) {
+                    const [detectedIntent, detectedSentiment] = await Promise.all([
+                        detectIntent(processedContent).catch(err => ({ intent: null, tokenUsage: null })),
+                        analyzeSentiment(processedContent).catch(err => ({ sentiment: null, tokenUsage: null }))
+                    ]);
 
-                intent = detectedIntent.intent;
-                sentiment = detectedSentiment.sentiment;
+                    intent = detectedIntent.intent;
+                    sentiment = detectedSentiment.sentiment;
 
-                if (detectedIntent.tokenUsage) {
-                    aiUsageData.push({
-                        service_type: 'intent',
-                        model_name: 'gpt-3.5-turbo',
-                        prompt_tokens: detectedIntent.tokenUsage.prompt_tokens || 0,
-                        completion_tokens: detectedIntent.tokenUsage.completion_tokens || 0,
-                        total_tokens: detectedIntent.tokenUsage.total_tokens || 0,
-                        duration_seconds: 0
-                    });
-                }
+                    if (detectedIntent.tokenUsage) {
+                        aiUsageData.push({
+                            service_type: 'intent',
+                            model_name: 'gpt-3.5-turbo',
+                            prompt_tokens: detectedIntent.tokenUsage.prompt_tokens || 0,
+                            completion_tokens: detectedIntent.tokenUsage.completion_tokens || 0,
+                            total_tokens: detectedIntent.tokenUsage.total_tokens || 0,
+                            duration_seconds: 0
+                        });
+                    }
 
-                if (detectedSentiment.tokenUsage) {
-                    aiUsageData.push({
-                        service_type: 'sentiment',
-                        model_name: 'gpt-3.5-turbo',
-                        prompt_tokens: detectedSentiment.tokenUsage.prompt_tokens || 0,
-                        completion_tokens: detectedSentiment.tokenUsage.completion_tokens || 0,
-                        total_tokens: detectedSentiment.tokenUsage.total_tokens || 0,
-                        duration_seconds: 0
-                    });
-                }
+                    if (detectedSentiment.tokenUsage) {
+                        aiUsageData.push({
+                            service_type: 'sentiment',
+                            model_name: 'gpt-3.5-turbo',
+                            prompt_tokens: detectedSentiment.tokenUsage.prompt_tokens || 0,
+                            completion_tokens: detectedSentiment.tokenUsage.completion_tokens || 0,
+                            total_tokens: detectedSentiment.tokenUsage.total_tokens || 0,
+                            duration_seconds: 0
+                        });
+                    }
 
-                if (intent) {
-                    tags = await autoTagFromIntent(intent, processedContent).catch(err => []);
+                    if (intent) {
+                        tags = await autoTagFromIntent(intent, processedContent).catch(err => []);
+                    }
+                } else {
+                    console.log('[AI_PROCESSING] Skipping intent/sentiment for media-only message (token optimization)');
                 }
             }
 
@@ -587,9 +648,8 @@ ${agentContextData.context}`;
             const conversationHistory = recentMessages.reverse().map(msg => {
                 let content;
                 
-                // Preserve PDF/media context with higher limit
-                if (msg.media_analysis) {
-                    // For media messages, include analysis summary + truncated content
+                // 🔥 FIX: Preserve FULL media context for agent memory
+                if (msg.media_analysis && msg.media_analysis.type) {
                     const mediaType = msg.media_analysis.type.toUpperCase();
                     const summary = msg.media_analysis.analysis_summary || '';
                     const keyDetails = msg.media_analysis.key_details ? 
@@ -599,21 +659,28 @@ ${agentContextData.context}`;
                             .join(', ') : '';
                     
                     // Build comprehensive media context
-                    let mediaContext = `[${mediaType} ANALYSIS: ${summary}]`;
-                    if (keyDetails) {
-                        mediaContext += ` [KEY DETAILS: ${keyDetails}]`;
+                    let mediaContext = `[${mediaType}]`;
+                    if (summary) mediaContext += ` ${summary}`;
+                    if (keyDetails) mediaContext += ` | Details: ${keyDetails}`;
+                    
+                    // Extract user's question from content (remove analysis tags)
+                    const userQuestion = msg.content
+                        .replace(/\[Media received:.*?\]/g, '')
+                        .replace(/\[PDF Analysis:.*?\]/g, '')
+                        .replace(/\[Image Analysis:.*?\]/g, '')
+                        .replace(/\[Transcription:.*?\]/g, '')
+                        .replace(/\[Document Type:.*?\]/g, '')
+                        .replace(/\[Key Details:.*?\]/g, '')
+                        .trim();
+                    
+                    if (userQuestion && userQuestion.length > 0) {
+                        mediaContext += ` | User: ${userQuestion}`;
                     }
                     
-                    // Add original message if not too long
-                    const originalContent = msg.content.replace(/\[PDF Analysis:.*?\]/g, '').replace(/\[Document Type:.*?\]/g, '').replace(/\[Key Details:.*?\]/g, '').trim();
-                    if (originalContent && originalContent.length < 500) {
-                        mediaContext += ` ${originalContent}`;
-                    }
-                    
-                    content = mediaContext.length > 2000 ? mediaContext.substring(0, 2000) + '...' : mediaContext;
+                    content = mediaContext.substring(0, 1500); // Increased limit for media
                 } else {
                     // For text messages, use standard truncation
-                    content = msg.content.length > 1000 ? msg.content.substring(0, 1000) + '...' : msg.content;
+                    content = msg.content.length > 800 ? msg.content.substring(0, 800) + '...' : msg.content;
                 }
                 
                 return {
@@ -622,6 +689,7 @@ ${agentContextData.context}`;
                 };
             });
             
+            console.log(`[HISTORY] Prepared ${conversationHistory.length} messages with media context`);
             return conversationHistory;
         } catch (error) {
             console.error('[HISTORY] Error getting optimized history:', error);

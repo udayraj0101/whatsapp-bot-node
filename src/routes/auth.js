@@ -7,10 +7,12 @@ const { redirectIfAuthenticated, redirectIfAdminAuthenticated } = require('../..
 router.get('/login', redirectIfAuthenticated, AuthController.showLogin);
 router.post('/login', redirectIfAuthenticated, AuthController.login);
 router.get('/logout', AuthController.logout);
+router.post('/logout', AuthController.logout); // Add POST route for AJAX logout
 
 // Admin authentication
 router.get('/admin/login', redirectIfAdminAuthenticated, AuthController.showAdminLogin);
 router.post('/admin/login', AuthController.adminLogin);
 router.get('/admin/logout', AuthController.adminLogout);
+router.post('/admin/logout', AuthController.adminLogout); // Add POST route for AJAX logout
 
 module.exports = router;

@@ -37,7 +37,11 @@ class AdminController {
                 exchangeRate: exchangeRate.rate
             };
 
-            res.render('admin/dashboard', { currentPage: 'admin', stats });
+            res.render('admin/dashboard', { 
+                currentPage: 'admin', 
+                stats,
+                admin: req.admin || { name: 'Admin', email: 'admin@system.com' }
+            });
         } catch (error) {
             console.error('Admin dashboard error:', error);
             res.status(500).send('Error loading admin dashboard');
@@ -80,6 +84,7 @@ class AdminController {
             res.render('admin/vendors', { 
                 currentPage: 'admin', 
                 vendors: vendorsWithStats,
+                admin: req.admin || { name: 'Admin', email: 'admin@system.com' },
                 pagination: {
                     page,
                     totalPages,
@@ -95,7 +100,11 @@ class AdminController {
     }
 
     static async vendorCreate(req, res) {
-        res.render('admin/vendor-create', { currentPage: 'admin', error: null });
+        res.render('admin/vendor-create', { 
+            currentPage: 'admin', 
+            error: null,
+            admin: req.admin || { name: 'Admin', email: 'admin@system.com' }
+        });
     }
 
     static async vendorStore(req, res) {
@@ -107,7 +116,11 @@ class AdminController {
             } = req.body;
             
             const existing = await Vendor.findOne({ email: email.toLowerCase() });
-            if (existing) return res.render('admin/vendor-create', { currentPage: 'admin', error: 'Email already exists' });
+            if (existing) return res.render('admin/vendor-create', { 
+                currentPage: 'admin', 
+                error: 'Email already exists',
+                admin: req.admin || { name: 'Admin', email: 'admin@system.com' }
+            });
 
             const vendorId = generateVendorId();
             const businessId = generateBusinessId();
@@ -161,7 +174,11 @@ class AdminController {
             res.redirect('/admin/vendors');
         } catch (error) {
             console.error('Admin create vendor error:', error);
-            res.render('admin/vendor-create', { currentPage: 'admin', error: 'Failed to create vendor' });
+            res.render('admin/vendor-create', { 
+                currentPage: 'admin', 
+                error: 'Failed to create vendor',
+                admin: req.admin || { name: 'Admin', email: 'admin@system.com' }
+            });
         }
     }
 
@@ -206,7 +223,8 @@ class AdminController {
             res.render('admin/vendor-detail', { 
                 currentPage: 'admin', 
                 vendor, 
-                vendorStats
+                vendorStats,
+                admin: req.admin || { name: 'Admin', email: 'admin@system.com' }
             });
         } catch (error) {
             console.error('Admin vendor detail error:', error);
@@ -230,7 +248,14 @@ class AdminController {
     // Wallet management
     static async walletManagement(req, res) {
         try {
-            const vendors = await Vendor.find({}).lean();
+            const page = parseInt(req.query.page) || 1;
+            const limit = 20;
+            const skip = (page - 1) * limit;
+            
+            const totalVendors = await Vendor.countDocuments({});
+            const totalPages = Math.ceil(totalVendors / limit);
+            
+            const vendors = await Vendor.find({}).skip(skip).limit(limit).lean();
             const vendorIds = vendors.map(v => v.vendor_id);
             
             const wallets = await VendorWallet.find({ vendor_id: { $in: vendorIds } }).lean();
@@ -251,7 +276,15 @@ class AdminController {
             res.render('admin/wallet', {
                 currentPage: 'admin',
                 vendors: vendorsWithWallets,
-                exchangeRate: exchangeRate.rate
+                exchangeRate: exchangeRate.rate,
+                admin: req.admin || { name: 'Admin', email: 'admin@system.com' },
+                pagination: {
+                    page,
+                    totalPages,
+                    totalItems: totalVendors,
+                    hasNext: page < totalPages,
+                    hasPrev: page > 1
+                }
             });
         } catch (error) {
             console.error('Admin wallet error:', error);
@@ -327,6 +360,7 @@ class AdminController {
             res.render('admin/topup-history', {
                 currentPage: 'admin',
                 topups: topupsWithVendor,
+                admin: req.admin || { name: 'Admin', email: 'admin@system.com' },
                 pagination: {
                     page,
                     totalPages,
@@ -345,7 +379,7 @@ class AdminController {
     static async billingHistory(req, res) {
         try {
             const page = parseInt(req.query.page) || 1;
-            const limit = 50;
+            const limit = 5; // Reduced to 5 for testing
             const skip = (page - 1) * limit;
             
             const totalBillings = await UsageRecord.countDocuments({});
@@ -369,6 +403,7 @@ class AdminController {
             res.render('admin/billing-history', {
                 currentPage: 'admin',
                 billings: billingsWithVendor,
+                admin: req.admin || { name: 'Admin', email: 'admin@system.com' },
                 pagination: {
                     page,
                     totalPages,
@@ -408,7 +443,8 @@ class AdminController {
                 currentPage: 'admin',
                 globalPricing,
                 defaultMarkup,
-                exchangeRate
+                exchangeRate,
+                admin: req.admin || { name: 'Admin', email: 'admin@system.com' }
             });
         } catch (error) {
             console.error('Admin pricing config error:', error);

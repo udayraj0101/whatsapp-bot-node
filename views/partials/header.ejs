@@ -19,21 +19,187 @@
     
     <div class="header-right">
         <div class="header-actions">
-            <button class="header-btn" title="Notifications">
-                <i class="fas fa-bell"></i>
-                <span class="badge">3</span>
-            </button>
-            <button class="header-btn" title="Search">
-                <i class="fas fa-search"></i>
-            </button>
             <div class="user-menu">
-                <button class="user-menu-btn">
+                <div class="user-info" onclick="toggleUserMenu()">
                     <div class="user-avatar-small">
-                        <i class="fas fa-user"></i>
+                        <% if (typeof vendor !== 'undefined' && vendor) { %>
+                            <%= vendor.company_name.charAt(0).toUpperCase() %>
+                        <% } else if (typeof admin !== 'undefined' && admin) { %>
+                            <%= admin.name.charAt(0).toUpperCase() %>
+                        <% } else { %>
+                            <i class="fas fa-user"></i>
+                        <% } %>
+                    </div>
+                    <div class="user-details">
+                        <span class="user-name">
+                            <% if (typeof vendor !== 'undefined' && vendor) { %>
+                                <%= vendor.company_name %>
+                            <% } else if (typeof admin !== 'undefined' && admin) { %>
+                                <%= admin.name %>
+                            <% } else { %>
+                                User
+                            <% } %>
+                        </span>
+                        <span class="user-role">
+                            <% if (typeof vendor !== 'undefined' && vendor) { %>
+                                Vendor
+                            <% } else if (typeof admin !== 'undefined' && admin) { %>
+                                Admin
+                            <% } else { %>
+                                User
+                            <% } %>
+                        </span>
                     </div>
                     <i class="fas fa-chevron-down"></i>
-                </button>
+                </div>
+                <div class="user-dropdown" id="userDropdown">
+                    <a href="#" class="dropdown-item" onclick="logout()">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </a>
+                </div>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.user-info:hover {
+    background-color: var(--background-color);
+}
+
+.user-avatar-small {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.user-details {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.user-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+.user-role {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    line-height: 1.2;
+}
+
+.user-menu {
+    position: relative;
+}
+
+.user-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: var(--shadow-lg);
+    min-width: 180px;
+    z-index: 1000;
+    display: none;
+    margin-top: 0.5rem;
+}
+
+.user-dropdown.show {
+    display: block;
+}
+
+.dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+}
+
+.dropdown-item:hover {
+    background-color: var(--background-color);
+    color: var(--text-primary);
+}
+
+.dropdown-divider {
+    height: 1px;
+    background-color: var(--border-color);
+    margin: 0.5rem 0;
+}
+
+@media (max-width: 768px) {
+    .user-details {
+        display: none;
+    }
+}
+</style>
+
+<script>
+function toggleUserMenu() {
+    const dropdown = document.getElementById('userDropdown');
+    dropdown.classList.toggle('show');
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', function(event) {
+    const userMenu = document.querySelector('.user-menu');
+    const dropdown = document.getElementById('userDropdown');
+    
+    if (!userMenu.contains(event.target)) {
+        dropdown.classList.remove('show');
+    }
+});
+
+function logout() {
+    if (confirm('Are you sure you want to logout?')) {
+        // Determine if admin or vendor logout
+        const isAdmin = window.location.pathname.includes('/admin');
+        const logoutUrl = isAdmin ? '/admin/logout' : '/logout';
+        const redirectUrl = isAdmin ? '/admin/login' : '/login';
+        
+        fetch(logoutUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                window.location.href = redirectUrl;
+            } else {
+                alert('Logout failed. Please try again.');
+            }
+        })
+        .catch(error => {
+            console.error('Logout error:', error);
+            alert('Logout failed. Please try again.');
+        });
+    }
+}
+</script>

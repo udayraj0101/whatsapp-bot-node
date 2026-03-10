@@ -3,6 +3,7 @@ const express = require('express');
 const session = require('express-session');
 const path = require('path');
 const fs = require('fs');
+const mongoose = require('mongoose');
 
 // Import database connection
 const { connectDB } = require('./models/database');
@@ -92,6 +93,30 @@ app.post('/admin/pricing/default-markup', requireAdmin, AdminController.updateDe
 
 // Import remaining routes from old app.js (temporary)
 require('./src/routes/legacy')(app);
+
+// Health check endpoint
+app.get('/health', async (req, res) => {
+    const health = {
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        mongodb: 'disconnected',
+        memory: {
+            used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + ' MB',
+            total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + ' MB'
+        }
+    };
+    
+    try {
+        await mongoose.connection.db.admin().ping();
+        health.mongodb = 'connected';
+    } catch (e) {
+        health.mongodb = 'error';
+        health.status = 'degraded';
+    }
+    
+    res.status(health.status === 'ok' ? 200 : 503).json(health);
+});
 
 const port = process.env.WHATSAPP_BUSINESS_PORT || 3001;
 app.listen(port, () => {

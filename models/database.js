@@ -1,6 +1,10 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
+// Simple in-memory cache for agent contexts
+const agentContextCache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 // MongoDB connection
 const connectDB = async () => {
     try {
@@ -51,6 +55,9 @@ const chatroomSchema = new mongoose.Schema({
     phone_number: { type: String, required: true },
     // MVP: SLA Management & Tagging
     status: { type: String, enum: ['new', 'pending', 'overdue', 'closed'], default: 'new' },
+    manually_closed: { type: Boolean, default: false },
+    closed_reason: { type: String, enum: ['manual', 'auto_resolution', 'auto_inactivity'] },
+    closed_at: { type: Date },
     tags: [{ type: String }],
     sla_deadline: { type: Date },
     // Feedback State Tracking
@@ -362,9 +369,18 @@ async function getChatroomMessages(vendorId, chatroomId, limit = 50) {
     }
 }
 
-// Get agent context (Updated for multi-tenancy)
+// Get agent context (Updated for multi-tenancy with caching)
 async function getAgentContext(vendorId, businessId, agentId) {
     try {
+        // Check cache first
+        const cacheKey = `${vendorId}:${businessId}:${agentId}`;
+        const cached = agentContextCache.get(cacheKey);
+        
+        if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
+            console.log(`[CACHE] Agent context cache HIT for ${cacheKey}`);
+            return cached.data;
+        }
+        
         console.log(`Database query: Finding agent context for vendor_id: ${vendorId}, business_id: ${businessId}, agent_id: ${agentId}`);
         const result = await AgentContext.findOne({ 
             vendor_id: vendorId,
@@ -375,6 +391,8 @@ async function getAgentContext(vendorId, businessId, agentId) {
         
         if (result) {
             console.log(`Found agent context: ${result.name}, last updated: ${result.updatedAt}`);
+            // Store in cache
+            agentContextCache.set(cacheKey, { data: result, timestamp: Date.now() });
         } else {
             console.log(`No agent context found for vendor_id: ${vendorId}`);
         }
@@ -386,10 +404,10 @@ async function getAgentContext(vendorId, businessId, agentId) {
     }
 }
 
-// Create or update agent context (Updated for multi-tenancy)
+// Create or update agent context (Updated for multi-tenancy with cache invalidation)
 async function saveAgentContext(vendorId, businessId, agentId, name, context, updatedBy = 'system') {
     try {
-        return await AgentContext.findOneAndUpdate(
+        const result = await AgentContext.findOneAndUpdate(
             { vendor_id: vendorId, business_id: businessId, agent_id: agentId },
             { 
                 name: name,
@@ -399,6 +417,13 @@ async function saveAgentContext(vendorId, businessId, agentId, name, context, up
             },
             { upsert: true, new: true }
         );
+        
+        // Invalidate cache
+        const cacheKey = `${vendorId}:${businessId}:${agentId}`;
+        agentContextCache.delete(cacheKey);
+        console.log(`[CACHE] Invalidated cache for ${cacheKey}`);
+        
+        return result;
     } catch (error) {
         throw error;
     }

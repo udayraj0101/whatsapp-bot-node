@@ -39,16 +39,4 @@
             <span>Logout</span>
         </a>
     </nav>
-
-    <div class="sidebar-footer">
-        <div class="user-info">
-            <div class="user-avatar">
-                <i class="fas fa-user-shield"></i>
-            </div>
-            <div class="user-details">
-                <div class="user-name"><%= (typeof admin !== 'undefined' && admin && admin.name) ? admin.name : (typeof vendor !== 'undefined' && vendor && vendor.company_name) ? vendor.company_name : 'Admin' %></div>
-                <div class="user-role">System Administrator</div>
-            </div>
-        </div>
-    </div>
 </div>
