@@ -138,8 +138,11 @@
                             <a href="/chatroom/<%= conv._id %>" class="btn btn-primary btn-sm">
                                 <i class="fas fa-eye"></i> View
                             </a>
-                            <button class="btn btn-success btn-sm" onclick="updateStatus('<%= conv._id %>', 'closed')">
-                                <i class="fas fa-check"></i> Resolve
+                            <button class="btn btn-success btn-sm" onclick="resolveWithFeedback('<%= conv._id %>')">
+                                <i class="fas fa-check"></i> Resolve & Ask Feedback
+                            </button>
+                            <button class="btn btn-warning btn-sm" onclick="requestFeedback('<%= conv._id %>')">
+                                <i class="fas fa-star"></i> Request Feedback
                             </button>
                         </div>
                     </div>
@@ -236,8 +239,11 @@
                                 <i class="fas fa-eye"></i> View
                             </a>
                             <% if (conv.slaInfo.status !== 'closed') { %>
-                            <button class="btn btn-success btn-sm" onclick="updateStatus('<%= conv._id %>', 'closed')">
-                                <i class="fas fa-check"></i> Resolve
+                            <button class="btn btn-success btn-sm" onclick="resolveWithFeedback('<%= conv._id %>')">
+                                <i class="fas fa-check"></i> Resolve & Ask Feedback
+                            </button>
+                            <button class="btn btn-warning btn-sm" onclick="requestFeedback('<%= conv._id %>')">
+                                <i class="fas fa-star"></i> Request Feedback
                             </button>
                             <% } else { %>
                             <span class="badge badge-success">Resolved</span>
@@ -538,6 +544,16 @@
     color: white;
 }
 
+.btn-warning {
+    background: var(--warning-color);
+    color: white;
+}
+
+.btn-warning:hover {
+    background: #d97706;
+    color: white;
+}
+
 .btn-success {
     background: var(--success-color);
     color: white;
@@ -655,6 +671,64 @@ function updateStatus(chatroomId, newStatus) {
     .catch(error => {
         console.error('Error:', error);
         alert('Failed to update status');
+    });
+}
+
+// 🆕 Resolve conversation and request feedback
+function resolveWithFeedback(chatroomId) {
+    if (!confirm('Close this conversation and request customer feedback?')) {
+        return;
+    }
+    
+    fetch(`/api/chatroom/${chatroomId}/status`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+            status: 'closed',
+            requestFeedback: true 
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Conversation closed and feedback requested!');
+            window.location.reload();
+        } else {
+            alert('Failed to close conversation: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to close conversation');
+    });
+}
+
+// 🆕 Request feedback without closing
+function requestFeedback(chatroomId) {
+    if (!confirm('Send feedback request to customer?')) {
+        return;
+    }
+    
+    fetch(`/api/chatroom/${chatroomId}/request-feedback`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Feedback request sent to customer!');
+            // Don't reload page since conversation stays open
+        } else {
+            alert('Failed to request feedback: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to request feedback');
     });
 }
 </script>

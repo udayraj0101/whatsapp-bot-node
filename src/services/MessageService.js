@@ -38,6 +38,18 @@ class MessageService {
 
         console.log(`[VENDOR_FOUND] Message for vendor: ${vendor.company_name} (${vendor.vendor_id})`);
 
+        // 🔥 CHECK FOR FEEDBACK RESPONSE FIRST
+        const { FeedbackService } = require('../../models/feedback');
+        const isAwaitingFeedback = await FeedbackService.isAwaitingFeedback(from);
+        
+        if (isAwaitingFeedback && messageType === 'text') {
+            const feedbackProcessed = await FeedbackService.processFeedbackResponse(from, message.text?.body || '');
+            if (feedbackProcessed) {
+                console.log(`[FEEDBACK] Processed feedback response from ${from}`);
+                return; // Don't process as regular message
+            }
+        }
+
         // Handle different message types
         if (messageType === 'text') {
             messageText = message.text?.body || '';
@@ -244,6 +256,18 @@ ${agentContextData.context}`;
                 const autoClosed = await autoCloseIfResolved(chatroom._id, botMessage.resolution_analysis);
                 if (autoClosed) {
                     console.log(`[SLA] Auto-closed conversation ${chatroom._id} due to high confidence resolution`);
+                    
+                    // 🔥 NEW: Request feedback after AI auto-close
+                    const { FeedbackService } = require('../../models/feedback');
+                    await FeedbackService.scheduleFeedbackRequest(
+                        vendor.vendor_id,
+                        chatroom._id,
+                        from,
+                        'resolution_confident',
+                        1, // Send in 1 minute instead of 5
+                        botMessage.resolution_analysis.confidence
+                    );
+                    console.log(`[FEEDBACK] Scheduled confident resolution feedback for ${from}`);
                 }
             }
 

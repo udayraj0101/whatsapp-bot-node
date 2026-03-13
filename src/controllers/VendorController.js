@@ -28,7 +28,11 @@ class VendorController {
             });
 
             totalBotResponses = botMessages.length;
-            resolvedQueries = botMessages.filter(m => m.resolution_analysis?.resolved === true).length;
+            // Count both high-confidence resolved AND medium-confidence helpful responses
+            resolvedQueries = botMessages.filter(m => 
+                m.resolution_analysis?.resolved === true || 
+                (m.resolution_analysis?.confidence >= 0.5 && m.resolution_analysis?.resolution_type === 'direct_answer')
+            ).length;
             totalUserQueries = await Message.countDocuments({
                 vendor_id: req.vendorId,
                 message_type: 'user'

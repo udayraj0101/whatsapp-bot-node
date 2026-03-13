@@ -4,16 +4,38 @@ const { getFixedTags } = require('../../ai/tagging');
 const { getSLAStats, calculateSLAStatus } = require('../../services/sla');
 
 module.exports = function(app) {
-    // 📝 Manual Resolution API Endpoint
+    // 📝 Manual Resolution API Endpoint with Feedback Option
     app.post('/api/chatroom/:id/status', requireAuth, async (req, res) => {
         try {
-            const { status } = req.body;
+            const { status, requestFeedback } = req.body;
             const chatroomId = req.params.id;
             
             if (status === 'closed') {
                 const { closeConversation } = require('../../services/sla');
                 await closeConversation(chatroomId, req.vendorId, 'manual');
-                res.json({ success: true, message: 'Conversation closed successfully' });
+                
+                // 🔥 NEW: Request feedback when manually closing
+                if (requestFeedback !== false) { // Default to true unless explicitly false
+                    const { FeedbackService } = require('../../models/feedback');
+                    const chatroom = await Chatroom.findById(chatroomId);
+                    
+                    if (chatroom) {
+                        await FeedbackService.scheduleFeedbackRequest(
+                            req.vendorId,
+                            chatroomId,
+                            chatroom.phone_number,
+                            'manual_close',
+                            1 // Send in 1 minute
+                        );
+                        console.log(`[FEEDBACK] Scheduled manual close feedback for ${chatroom.phone_number}`);
+                    }
+                }
+                
+                res.json({ 
+                    success: true, 
+                    message: 'Conversation closed successfully',
+                    feedbackRequested: requestFeedback !== false
+                });
             } else {
                 // For other status updates
                 await Chatroom.findOneAndUpdate(
@@ -24,6 +46,54 @@ module.exports = function(app) {
             }
         } catch (error) {
             console.error('[API] Error updating conversation status:', error);
+            res.status(500).json({ success: false, error: error.message });
+        }
+    });
+
+    // 🆕 NEW: Manual Feedback Request API
+    app.post('/api/chatroom/:id/request-feedback', requireAuth, async (req, res) => {
+        try {
+            const chatroomId = req.params.id;
+            const { FeedbackService } = require('../../models/feedback');
+            
+            const chatroom = await Chatroom.findOne({ 
+                _id: chatroomId, 
+                vendor_id: req.vendorId 
+            });
+            
+            if (!chatroom) {
+                return res.status(404).json({ success: false, error: 'Conversation not found' });
+            }
+            
+            // Check if feedback already requested
+            const { FeedbackRequest } = require('../../models/feedback');
+            const existingFeedback = await FeedbackRequest.findOne({
+                chatroom_id: chatroomId,
+                status: { $in: ['pending', 'sent'] }
+            });
+            
+            if (existingFeedback) {
+                return res.json({ 
+                    success: false, 
+                    error: 'Feedback already requested for this conversation' 
+                });
+            }
+            
+            await FeedbackService.scheduleFeedbackRequest(
+                req.vendorId,
+                chatroomId,
+                chatroom.phone_number,
+                'agent_requested',
+                0 // Send immediately
+            );
+            
+            res.json({ 
+                success: true, 
+                message: 'Feedback request sent successfully' 
+            });
+            
+        } catch (error) {
+            console.error('[API] Error requesting feedback:', error);
             res.status(500).json({ success: false, error: error.message });
         }
     });
@@ -45,7 +115,7 @@ module.exports = function(app) {
                 .skip(skip)
                 .limit(limit);
             
-            const { calculateSLAStatus, getEffectiveSLAStatus } = require('../../services/sla');
+            const { getEffectiveSLAStatus } = require('../../services/sla');
             const allConversations = [];
             const overdueConversations = [];
             const dueSoonConversations = [];
@@ -75,7 +145,7 @@ module.exports = function(app) {
                 
                 if (slaInfo.status === 'overdue') {
                     overdueConversations.push(conversationData);
-                } else if (slaInfo.status === 'on_time' && slaInfo.hoursElapsed >= 22) {
+                } else if (slaInfo.status === 'pending' && slaInfo.hoursRemaining <= 2) {
                     dueSoonConversations.push(conversationData);
                 }
             }
@@ -110,35 +180,39 @@ module.exports = function(app) {
             const limit = 20;
             const skip = (page - 1) * limit;
             
-            const totalFeedbacksCount = await FeedbackRequest.countDocuments({ 
+            // Get all feedbacks for this vendor (not just paginated ones for analytics)
+            const allFeedbacks = await FeedbackRequest.find({ 
                 vendor_id: req.vendorId,
                 status: 'responded'
             });
+            
+            const totalFeedbacksCount = allFeedbacks.length;
             const totalPages = Math.ceil(totalFeedbacksCount / limit);
             
+            // Get paginated feedbacks for display
             const feedbacks = await FeedbackRequest.find({ 
                 vendor_id: req.vendorId,
                 status: 'responded'
             }).sort({ createdAt: -1 }).skip(skip).limit(limit);
             
-            const totalFeedbacks = feedbacks.length;
-            const averageRating = totalFeedbacks > 0 ? 
-                (feedbacks.reduce((sum, f) => sum + f.rating, 0) / totalFeedbacks).toFixed(1) : 0;
+            // Calculate analytics from ALL feedbacks, not just paginated ones
+            const averageRating = totalFeedbacksCount > 0 ? 
+                (allFeedbacks.reduce((sum, f) => sum + f.rating, 0) / totalFeedbacksCount).toFixed(1) : 0;
             
             const ratingDistribution = {
-                5: feedbacks.filter(f => f.rating === 5).length,
-                4: feedbacks.filter(f => f.rating === 4).length,
-                3: feedbacks.filter(f => f.rating === 3).length,
-                2: feedbacks.filter(f => f.rating === 2).length,
-                1: feedbacks.filter(f => f.rating === 1).length
+                5: allFeedbacks.filter(f => f.rating === 5).length,
+                4: allFeedbacks.filter(f => f.rating === 4).length,
+                3: allFeedbacks.filter(f => f.rating === 3).length,
+                2: allFeedbacks.filter(f => f.rating === 2).length,
+                1: allFeedbacks.filter(f => f.rating === 1).length
             };
             
             const analytics = {
-                totalFeedbacks,
+                totalFeedbacks: totalFeedbacksCount,
                 averageRating,
                 ratingDistribution,
-                satisfactionRate: totalFeedbacks > 0 ? 
-                    Math.round(((ratingDistribution[4] + ratingDistribution[5]) / totalFeedbacks) * 100) : 0
+                satisfactionRate: totalFeedbacksCount > 0 ? 
+                    Math.round(((ratingDistribution[4] + ratingDistribution[5]) / totalFeedbacksCount) * 100) : 0
             };
             
             res.render('feedback', { 

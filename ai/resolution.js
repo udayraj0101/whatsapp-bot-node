@@ -6,12 +6,40 @@ async function analyzeQueryResolution(userMessage, aiResponse, conversationConte
         // Skip analysis for simple greetings and non-queries
         const userLower = userMessage.toLowerCase().trim();
         const simpleGreetings = ['hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening'];
+        const questionWords = ['what', 'how', 'why', 'when', 'where', 'can you', 'could you', 'please', 'help', 'issue', 'problem', 'error', 'not working'];
         
         if (simpleGreetings.some(greeting => userLower === greeting || userLower.startsWith(greeting))) {
             return {
                 resolved: false,
                 confidence: 0.1,
                 reason: 'Simple greeting - no specific query to resolve',
+                resolution_type: 'no_resolution',
+                tokenUsage: null
+            };
+        }
+        
+        // Check if user is asking a specific question or reporting an issue
+        const hasQuestion = questionWords.some(word => userLower.includes(word));
+        const hasThankYou = userLower.includes('thank') || userLower.includes('thanks');
+        const hasPositiveFeedback = userLower.includes('worked') || userLower.includes('fixed') || userLower.includes('solved');
+        
+        // If user says "thanks" or "it worked", that's high confidence resolution
+        if (hasThankYou && hasPositiveFeedback) {
+            return {
+                resolved: true,
+                confidence: 0.9,
+                reason: 'Customer confirmed issue was resolved with thanks',
+                resolution_type: 'direct_answer',
+                tokenUsage: null
+            };
+        }
+        
+        // If no specific question, don't auto-close
+        if (!hasQuestion && !hasThankYou) {
+            return {
+                resolved: false,
+                confidence: 0.2,
+                reason: 'No specific question or resolution confirmation detected',
                 resolution_type: 'no_resolution',
                 tokenUsage: null
             };
@@ -25,8 +53,10 @@ Context: ${conversationContext}
 
 IMPORTANT RULES:
 - Simple greetings (hello, hi) should be resolved=false, confidence=0.1
-- Only mark resolved=true if the response directly answers a specific question
-- Confidence should be 0.1-0.3 for greetings, 0.4-0.7 for partial answers, 0.8-1.0 for complete answers
+- Only mark resolved=true if customer explicitly confirms resolution ("thanks", "it worked", "fixed")
+- General questions should have confidence 0.3-0.5 maximum
+- Only use confidence 0.8+ when customer says "thanks", "it worked", "solved", "fixed"
+- Be VERY conservative - most responses should be confidence 0.3-0.6
 
 Determine if the AI response:
 1. Directly answers the customer's question
@@ -47,7 +77,7 @@ Respond with JSON only:
             messages: [
                 {
                     role: 'system',
-                    content: 'You are an expert at analyzing customer service interactions. Be strict about resolution - only mark as resolved if a specific query was answered. Respond only with valid JSON.'
+                    content: 'You are an expert at analyzing customer service interactions. Be VERY STRICT about resolution - only mark as resolved with high confidence (0.8+) if customer explicitly confirms satisfaction ("thanks", "it worked", "fixed", "solved"). Most responses should be 0.3-0.6 confidence. Respond only with valid JSON.'
                 },
                 {
                     role: 'user',

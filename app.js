@@ -26,8 +26,22 @@ const app = express();
 const BillingEngine = require('./billing/BillingEngine');
 const billingEngine = new BillingEngine();
 
+// Initialize SLA processor
+const { slaProcessor } = require('./services/sla');
+
 // Initialize feedback processing
 const { FeedbackService } = require('./models/feedback');
+
+// Initialize feedback processing - run every 2 minutes for faster feedback delivery
+setInterval(async () => {
+    try {
+        await FeedbackService.processPendingFeedbacks();
+    } catch (error) {
+        console.error('[FEEDBACK] Error processing pending feedbacks:', error);
+    }
+}, 2 * 60 * 1000); // Every 2 minutes
+
+// Process abandoned conversations every hour
 setInterval(async () => {
     try {
         await FeedbackService.processAbandonedConversations();
@@ -101,6 +115,7 @@ app.get('/health', async (req, res) => {
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
         mongodb: 'disconnected',
+        sla_processor: slaProcessor.isRunning ? 'running' : 'stopped',
         memory: {
             used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + ' MB',
             total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + ' MB'
@@ -125,4 +140,23 @@ app.listen(port, () => {
     console.log(`Uploads directory: ${uploadsDir}`);
     console.log(`Web interface: http://localhost:${port}`);
     console.log('✅ Refactored architecture loaded successfully');
+    
+    // Start SLA processor after server starts
+    setTimeout(() => {
+        slaProcessor.start();
+        console.log('🎯 SLA Management System: ACTIVE');
+    }, 2000);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+    console.log('SIGTERM received, shutting down gracefully...');
+    slaProcessor.stop();
+    process.exit(0);
+});
+
+process.on('SIGINT', () => {
+    console.log('SIGINT received, shutting down gracefully...');
+    slaProcessor.stop();
+    process.exit(0);
 });

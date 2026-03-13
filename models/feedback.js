@@ -62,6 +62,17 @@ class FeedbackService {
     // Schedule feedback request
     static async scheduleFeedbackRequest(vendorId, chatroomId, phoneNumber, triggerType, delayMinutes = 10, resolutionConfidence = 0) {
         try {
+            // 🔥 ANTI-DUPLICATE: Check if feedback already scheduled/sent for this conversation
+            const existingFeedback = await FeedbackRequest.findOne({
+                chatroom_id: chatroomId,
+                status: { $in: ['pending', 'sent'] }
+            });
+
+            if (existingFeedback) {
+                console.log(`[FEEDBACK] Skipping duplicate feedback request for ${phoneNumber} - already ${existingFeedback.status}`);
+                return existingFeedback;
+            }
+
             const scheduledAt = new Date(Date.now() + delayMinutes * 60 * 1000);
             const expiresAt = new Date(scheduledAt.getTime() + 48 * 60 * 60 * 1000); // Expires in 48 hours
 
@@ -122,7 +133,7 @@ class FeedbackService {
     // Send feedback message
     static async sendFeedbackMessage(feedbackRequest) {
         try {
-            const { sendMessage } = require('../app');
+            const WhatsAppService = require('../src/services/WhatsAppService');
             const { Chatroom } = require('./database');
 
             const messages = {
@@ -135,7 +146,13 @@ class FeedbackService {
 
             const message = messages[feedbackRequest.trigger_type] || messages.conversation_timeout;
 
-            await sendMessage(feedbackRequest.phone_number, message);
+            // Get vendor_id from chatroom to send message
+            const chatroom = await Chatroom.findById(feedbackRequest.chatroom_id);
+            if (!chatroom) {
+                throw new Error('Chatroom not found for feedback request');
+            }
+
+            await WhatsAppService.sendMessage(feedbackRequest.phone_number, message, chatroom.vendor_id);
 
             // Update feedback request status
             await FeedbackRequest.findByIdAndUpdate(feedbackRequest._id, {
@@ -197,9 +214,14 @@ class FeedbackService {
                     });
 
                     // Send thank you message
-                    const { sendMessage } = require('../app');
+                    const WhatsAppService = require('../src/services/WhatsAppService');
                     const thankYouMessage = `Thank you for your ${rating}⭐ rating! Your feedback helps us improve our service. Have a great day! 🙏`;
-                    await sendMessage(phoneNumber, thankYouMessage);
+                    
+                    // Get vendor_id from chatroom
+                    const chatroomForVendor = await Chatroom.findById(chatroom._id);
+                    if (chatroomForVendor) {
+                        await WhatsAppService.sendMessage(phoneNumber, thankYouMessage, chatroomForVendor.vendor_id);
+                    }
 
                     console.log(`[FEEDBACK] Received ${rating}⭐ rating from ${phoneNumber}`);
 
