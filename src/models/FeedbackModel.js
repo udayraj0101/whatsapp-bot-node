@@ -133,7 +133,7 @@ class FeedbackService {
     // Send feedback message
     static async sendFeedbackMessage(feedbackRequest) {
         try {
-            const WhatsAppService = require('../src/services/WhatsAppService');
+            const WhatsAppService = require('../services/WhatsAppService');
             const { Chatroom } = require('./database');
 
             const messages = {
@@ -214,7 +214,7 @@ class FeedbackService {
                     });
 
                     // Send thank you message
-                    const WhatsAppService = require('../src/services/WhatsAppService');
+                    const WhatsAppService = require('../services/WhatsAppService');
                     const thankYouMessage = `Thank you for your ${rating}⭐ rating! Your feedback helps us improve our service. Have a great day! 🙏`;
                     
                     // Get vendor_id from chatroom

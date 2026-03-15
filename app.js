@@ -6,7 +6,7 @@ const fs = require('fs');
 const mongoose = require('mongoose');
 
 // Import database connection
-const { connectDB } = require('./models/database');
+const { connectDB } = require('./src/config/database');
 
 // Import middleware
 const { setupGlobalMiddleware } = require('./src/middleware/global');
@@ -16,21 +16,21 @@ const authRoutes = require('./src/routes/auth');
 const webhookRoutes = require('./src/routes/webhook');
 const vendorRoutes = require('./src/routes/vendor');
 
-// Import existing controllers for backward compatibility
-const AdminController = require('./controllers/AdminController');
-const { requireAdmin } = require('./middleware/auth');
+// Import controllers
+const AdminController = require('./src/controllers/AdminController');
+const { requireAdmin } = require('./src/middleware/auth');
 
 const app = express();
 
 // Initialize billing engine
-const BillingEngine = require('./billing/BillingEngine');
+const BillingEngine = require('./src/services/billing/BillingEngine');
 const billingEngine = new BillingEngine();
 
 // Initialize SLA processor
-const { slaProcessor } = require('./services/sla');
+const { slaProcessor } = require('./src/services/SLAService');
 
 // Initialize feedback processing
-const { FeedbackService } = require('./models/feedback');
+const { FeedbackService } = require('./src/models/FeedbackModel');
 
 // Initialize feedback processing - run every 2 minutes for faster feedback delivery
 setInterval(async () => {

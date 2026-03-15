@@ -1,209 +1,325 @@
-# WhatsApp Business Bot with AI & CRM
+# 🚀 Enterprise WhatsApp Business Bot with AI & Multi-Tenant SaaS
 
-A professional Node.js/Express WhatsApp Business API bot with AI integration, multilingual support, and CRM management system.
+A production-ready, enterprise-grade WhatsApp Business API bot with advanced AI capabilities, multi-vendor SaaS architecture, and comprehensive business management features.
 
-## 🚀 Features
+## ✨ **Key Features**
 
-- **WhatsApp Business Integration** - Complete webhook handling and message processing
-- **AI-Powered Responses** - Integrates with FastAPI agent for intelligent conversations
-- **Multilingual Support** - Supports English, Hindi, and Hinglish with automatic language detection
-- **Speech-to-Text** - Audio message transcription using OpenAI Whisper
-- **Media Handling** - Support for images, audio, video, and documents
-- **Professional Dashboard** - Modern web interface for conversation management
-- **CRM System** - Database-driven agent context management
-- **Real-time Updates** - Live conversation tracking and statistics
+### 🤖 **Advanced AI Integration**
+- **Multi-Modal AI**: Supports text, images, audio, video, and PDF documents
+- **Intent Detection**: Automatically categorizes user messages (query, complaint, feedback, etc.)
+- **Sentiment Analysis**: Real-time emotion detection (positive, negative, neutral)
+- **Resolution Tracking**: AI-powered conversation resolution analysis
+- **Auto-Transcription**: Voice message to text using OpenAI Whisper
+- **Document Analysis**: PDF bill/invoice analysis with verification
+- **Image Understanding**: Advanced image analysis with GPT-4 Vision
 
-## 🛠️ Tech Stack
+### 🏢 **Multi-Tenant SaaS Architecture**
+- **Vendor Management**: Multiple businesses on single platform
+- **Isolated Data**: Complete data separation per vendor
+- **Custom Contexts**: AI agent customization per business
+- **Scalable Design**: Horizontal scaling ready
+- **Admin Dashboard**: Comprehensive vendor management
 
+### 💰 **Advanced Billing System**
+- **Token-Based Billing**: Micro-transaction billing per AI service
+- **Real-Time Cost Tracking**: Live usage monitoring
+- **Service Breakdown**: Detailed cost per AI service (STT, Vision, etc.)
+- **Wallet Management**: Vendor balance and top-up system
+- **Usage Analytics**: Comprehensive usage statistics
+
+### 📊 **SLA & Conversation Management**
+- **Automated SLA Tracking**: 24-hour response time monitoring
+- **Auto-Resolution**: AI-powered conversation closure
+- **Manual Override**: Admin conversation management
+- **Status Tracking**: Real-time conversation status
+- **Escalation System**: Overdue conversation handling
+
+### 🎯 **Feedback & Analytics**
+- **AI-Powered Feedback**: Automatic rating extraction from text
+- **Smart Scheduling**: Context-aware feedback requests
+- **Analytics Dashboard**: Comprehensive conversation analytics
+- **Performance Metrics**: Response rates and satisfaction scores
+- **Trend Analysis**: Historical performance tracking
+
+### 🔧 **Professional Features**
+- **Real-Time Dashboard**: Live conversation monitoring
+- **Media Handling**: Complete media download and processing
+- **Error Recovery**: Robust error handling and logging
+- **Health Monitoring**: System health endpoints
+- **Graceful Shutdown**: Production-ready deployment
+
+## 🏗️ **Architecture**
+
+```
+WhatsApp Business API → Node.js Bot → Python AI Agent → LangGraph → OpenAI
+                     ↓              ↓                              ↓
+                  MongoDB      FastAPI Service              GPT-4o-mini
+```
+
+### **Technology Stack**
 - **Backend**: Node.js, Express.js
 - **Database**: MongoDB with Mongoose
-- **AI**: OpenAI Whisper API for STT
+- **AI Services**: OpenAI GPT-4o-mini, Whisper, Vision
 - **Frontend**: EJS templates with modern CSS
-- **Media Storage**: Local file system
-- **Authentication**: WhatsApp webhook verification
+- **Authentication**: JWT-based session management
+- **File Storage**: Local file system with organized structure
 
-## 📋 Prerequisites
+## 📋 **Prerequisites**
 
-- Node.js (v14 or higher)
-- MongoDB database
+- Node.js (v16 or higher)
+- MongoDB (v4.4 or higher)
 - WhatsApp Business API account
-- OpenAI API key (for audio transcription)
-- FastAPI agent service (optional)
+- OpenAI API key
+- Python AI Agent Backend (separate service)
 
-## ⚙️ Installation
+## ⚙️ **Installation**
 
-1. **Clone the repository**
+### 1. **Clone Repository**
 ```bash
-git clone https://github.com/udayraj0101/whatsapp-bot-node.git
+git clone https://github.com/your-repo/whatsapp-bot-node.git
 cd whatsapp-bot-node
 ```
 
-2. **Install dependencies**
+### 2. **Install Dependencies**
 ```bash
 npm install
 ```
 
-3. **Configure environment variables**
-Create a `.env` file with your credentials:
+### 3. **Environment Configuration**
+Create `.env` file:
 ```env
-# WhatsApp Business API Configuration
+# WhatsApp Business API
 WHATSAPP_ACCESS_TOKEN=your_whatsapp_access_token
 WHATSAPP_PHONE_ID=your_phone_number_id
 WEBHOOK_VERIFY_TOKEN=your_webhook_verify_token
 WHATSAPP_APP_SECRET=your_app_secret
 
-# API Configuration
+# AI Agent Backend
 API_BASE_URL=http://localhost:8000
-BUSINESS_ID=1
-AGENT_ID=10
 
-# MongoDB Configuration
+# MongoDB
 MONGODB_URI=mongodb://localhost:27017/whatsapp_bot
 
-# OpenAI Configuration
+# OpenAI
 OPENAI_API_KEY=your_openai_api_key
 
-# Server Configuration
+# Server
 WHATSAPP_BUSINESS_PORT=3001
+SESSION_SECRET=your_session_secret_change_in_production
 ```
 
-4. **Start the application**
+### 4. **Database Setup**
 ```bash
+# Clean database (optional)
+node cleanup_database.js
+
+# Start MongoDB service
+# Windows: net start MongoDB
+# Linux/Mac: sudo systemctl start mongod
+```
+
+### 5. **Start Application**
+```bash
+# Production
 npm start
-```
 
-For development with auto-restart:
-```bash
+# Development (with auto-restart)
 npm run dev
 ```
 
-## 🌐 Usage
+## 🌐 **Usage**
 
-### Web Interface
+### **Web Interface**
 - **Dashboard**: `http://localhost:3001/` - View all conversations
-- **CRM**: `http://localhost:3001/crm` - Manage AI agent contexts
-- **Conversation Details**: Click any conversation to view messages and media
+- **Admin Panel**: `http://localhost:3001/admin` - Vendor management
+- **Analytics**: `http://localhost:3001/analytics` - Performance metrics
+- **SLA Management**: `http://localhost:3001/sla` - Conversation tracking
 
-### WhatsApp Integration
-- Set webhook URL to: `https://your-domain.com/webhook`
-- The bot handles text messages, media files, and voice messages
-- Automatic language detection and response matching
+### **WhatsApp Integration**
+1. Set webhook URL: `https://your-domain.com/webhook`
+2. Configure WhatsApp Business API
+3. Start receiving messages automatically
 
-### CRM Management
-1. Access CRM at `/crm`
-2. Create or edit agent contexts
-3. Define multilingual responses and conversation flows
-4. Changes apply immediately to new conversations
-
-## 📁 Project Structure
-
-```
-├── ai/
-│   └── stt.js              # Speech-to-text service
-├── models/
-│   └── database.js         # MongoDB schemas and functions
-├── views/
-│   ├── chatrooms.ejs       # Dashboard view
-│   ├── chatroom.ejs        # Conversation detail view
-│   ├── crm.ejs            # CRM dashboard
-│   └── agent-edit.ejs      # Agent context editor
-├── uploads/                # Media file storage
-├── whatsapp_bot.js        # Main application
-├── package.json
-└── README.md
-```
-
-## 🔧 API Endpoints
-
-### Webhook
+### **API Endpoints**
 - `GET /webhook` - Webhook verification
 - `POST /webhook` - Message handling
+- `GET /health` - System health check
+- `GET /api/conversations` - Conversation API
+- `POST /api/vendors` - Vendor management
 
-### Web Interface
-- `GET /` - Dashboard
-- `GET /chatroom/:id` - Conversation details
-- `GET /crm` - CRM dashboard
-- `GET /crm/agent/:businessId/:agentId` - Edit agent
-- `POST /crm/agent/:businessId/:agentId` - Save agent context
+## 🎯 **AI Capabilities**
 
-## 🌍 Multilingual Support
+### **Supported Media Types**
+- **Text Messages**: Full conversation support
+- **Images**: Analysis with GPT-4 Vision
+- **Audio**: Transcription with Whisper
+- **Videos**: Metadata extraction
+- **PDFs**: Document analysis and verification
+- **Documents**: File type detection and processing
 
-The bot automatically detects and responds in the user's language:
+### **AI Services**
+- **Intent Detection**: Categorizes user intent
+- **Sentiment Analysis**: Emotional state detection
+- **Resolution Analysis**: Conversation completion tracking
+- **Bill Verification**: Financial document authenticity
+- **Auto-Tagging**: Conversation categorization
 
-- **English**: Full English responses
-- **Hindi**: Complete Hindi responses with Devanagari script
-- **Hinglish**: Natural Hindi-English mix
+## 💼 **Business Features**
 
-Example conversation flows are included for each language in the default agent context.
+### **Multi-Vendor Support**
+- Isolated vendor data
+- Custom AI contexts per business
+- Separate billing and analytics
+- Individual webhook configurations
 
-## 📱 Media Support
+### **Billing System**
+- Real-time cost calculation
+- Service-specific pricing
+- Wallet-based payments
+- Usage analytics and reporting
 
-- **Images**: Inline display with modal zoom
-- **Audio**: HTML5 player with automatic transcription
-- **Video**: HTML5 video player
-- **Documents**: Download links with file type icons
+### **SLA Management**
+- 24-hour response tracking
+- Auto-escalation for overdue conversations
+- Manual conversation closure
+- Performance analytics
 
-## 🤖 AI Integration
+## 🔧 **Configuration**
 
-The bot integrates with a FastAPI agent service for intelligent responses. Configure the `API_BASE_URL` to point to your agent service.
+### **Agent Context Customization**
+```javascript
+// Access CRM at /crm
+{
+  "context": "You are a helpful customer service agent for [Business Name]",
+  "capabilities": ["document_analysis", "image_understanding", "voice_transcription"],
+  "language_support": ["english", "hindi", "hinglish"]
+}
+```
 
-## 🔒 Security
+### **Webhook Configuration**
+```javascript
+// WhatsApp webhook setup
+{
+  "url": "https://your-domain.com/webhook",
+  "verify_token": "your_webhook_verify_token",
+  "fields": ["messages", "message_deliveries", "message_reads"]
+}
+```
 
-- Webhook signature verification
-- Environment variable protection
-- Input validation and sanitization
-- Secure file handling
+## 📊 **Monitoring & Analytics**
 
-## 📊 Database Schema
+### **Real-Time Metrics**
+- Active conversations
+- Response times
+- AI service usage
+- Cost tracking
+- Error rates
 
-### Chatrooms
-- Business and agent IDs
-- Thread ID (phone number)
-- Timestamps and metadata
+### **Performance Analytics**
+- Conversation resolution rates
+- Customer satisfaction scores
+- AI accuracy metrics
+- Billing analytics
 
-### Messages
-- Message content and type
-- Media URLs and types
-- WhatsApp message IDs
-- Timestamps
+## 🚀 **Deployment**
 
-### Agent Contexts
-- Configurable AI behavior
-- Multilingual instructions
-- Version tracking
+### **Production Checklist**
+- [ ] Environment variables configured
+- [ ] MongoDB connection secured
+- [ ] SSL certificate installed
+- [ ] Webhook URL configured
+- [ ] Health monitoring setup
+- [ ] Backup strategy implemented
 
-## 🚀 Deployment
+### **Docker Deployment**
+```bash
+# Build image
+docker build -t whatsapp-bot .
 
-1. Set up MongoDB database
-2. Configure environment variables
-3. Set up WhatsApp webhook URL
-4. Deploy to your preferred platform
-5. Configure domain and SSL
+# Run container
+docker run -p 3001:3001 --env-file .env whatsapp-bot
+```
 
-## 🤝 Contributing
+### **PM2 Process Management**
+```bash
+# Install PM2
+npm install -g pm2
+
+# Start application
+pm2 start app.js --name whatsapp-bot
+
+# Monitor
+pm2 monit
+```
+
+## 🔒 **Security**
+
+- **Webhook Verification**: Signature validation
+- **Environment Protection**: Secure credential management
+- **Input Validation**: Request sanitization
+- **Error Handling**: Secure error responses
+- **Session Management**: JWT-based authentication
+
+## 🧪 **Testing**
+
+### **Health Check**
+```bash
+curl http://localhost:3001/health
+```
+
+### **Webhook Testing**
+```bash
+# Test webhook verification
+curl "http://localhost:3001/webhook?hub.mode=subscribe&hub.challenge=test&hub.verify_token=your_token"
+```
+
+## 📈 **Scaling**
+
+### **Horizontal Scaling**
+- Stateless design
+- Database connection pooling
+- Load balancer ready
+- Microservice architecture
+
+### **Performance Optimization**
+- Token optimization
+- Conversation history caching
+- Media file compression
+- Database indexing
+
+## 🤝 **Contributing**
 
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
+2. Create feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open Pull Request
 
-## 📄 License
+## 📄 **License**
 
-This project is licensed under the MIT License.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🆘 Support
+## 🆘 **Support**
 
-For support and questions:
-- Create an issue on GitHub
-- Check the documentation
-- Review the code comments
+- **Documentation**: Check README and code comments
+- **Issues**: Create GitHub issue with detailed description
+- **Email**: support@your-domain.com
 
-## 🔄 Updates
+## 🔄 **Changelog**
 
-- v1.0.0 - Initial release with core features
-- Multilingual support
-- CRM system
-- Professional UI
-- Media handling
-- STT integration
+### v2.0.0 (Current)
+- ✅ Multi-tenant SaaS architecture
+- ✅ Advanced AI integration
+- ✅ Comprehensive billing system
+- ✅ SLA management
+- ✅ Feedback system
+- ✅ Professional dashboard
+
+### v1.0.0
+- ✅ Basic WhatsApp integration
+- ✅ Simple message handling
+- ✅ MongoDB storage
+
+---
+
+**Built with ❤️ for enterprise WhatsApp automation**

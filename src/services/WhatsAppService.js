@@ -1,5 +1,5 @@
 const axios = require('axios');
-const { Vendor } = require('../../models/database');
+const { Vendor } = require('../models/database');
 
 class WhatsAppService {
     constructor() {

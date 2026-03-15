@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const AuthController = require('../controllers/AuthController');
-const { redirectIfAuthenticated, redirectIfAdminAuthenticated } = require('../../middleware/auth');
+const { redirectIfAuthenticated, redirectIfAdminAuthenticated } = require('../middleware/auth');
 
 // Vendor authentication
 router.get('/login', redirectIfAuthenticated, AuthController.showLogin);

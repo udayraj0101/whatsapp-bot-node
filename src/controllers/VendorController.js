@@ -1,4 +1,4 @@
-const { Chatroom, Message } = require('../../models/database');
+const { Chatroom, Message } = require('../models/database');
 
 class VendorController {
     async dashboard(req, res) {
@@ -63,7 +63,7 @@ class VendorController {
 
             // Get AI insights for each chatroom
             const { calculateConversationSentiment } = require('../utils/analytics');
-            const { getEffectiveSLAStatus } = require('../../services/sla');
+            const { getEffectiveSLAStatus } = require('../services/SLAService');
             const chatroomsWithInsights = await Promise.all(chatrooms.map(async (chatroom) => {
                 const messages = await Message.find({
                     vendor_id: req.vendorId,
@@ -130,7 +130,7 @@ class VendorController {
                 .limit(limit);
 
             const { calculateConversationSentiment } = require('../utils/analytics');
-            const { getEffectiveSLAStatus } = require('../../services/sla');
+            const { getEffectiveSLAStatus } = require('../services/SLAService');
             const chatroomsWithInsights = await Promise.all(chatrooms.map(async (chatroom) => {
                 const messages = await Message.find({
                     vendor_id: req.vendorId,
@@ -210,7 +210,7 @@ class VendorController {
             }).sort({ createdAt: 1 });
 
             const { calculateConversationSentiment } = require('../utils/analytics');
-            const { getEffectiveSLAStatus } = require('../../services/sla');
+            const { getEffectiveSLAStatus } = require('../services/SLAService');
             const slaInfo = getEffectiveSLAStatus(chatroom, firstUserMessage);
 
             const insights = {

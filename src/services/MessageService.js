@@ -1,14 +1,14 @@
 const axios = require('axios');
 const path = require('path');
-const { createOrGetChatroom, saveMessage, Message, Vendor, getAgentContext } = require('../../models/database');
-const { transcribeAudio } = require('../../ai/stt');
-const { analyzeImage } = require('../../ai/vision');
-const { PDFAnalysisService } = require('../../ai/pdf-analysis');
-const { detectIntent } = require('../../ai/intent');
-const { analyzeSentiment } = require('../../ai/sentiment');
-const { autoTagFromIntent } = require('../../ai/tagging');
+const { createOrGetChatroom, saveMessage, Message, Vendor, getAgentContext } = require('../models/database');
+const { transcribeAudio } = require('./ai/STTService');
+const { analyzeImage } = require('./ai/VisionService');
+const { PDFAnalysisService } = require('./ai/PDFAnalysisService');
+const { detectIntent } = require('./ai/IntentService');
+const { analyzeSentiment } = require('./ai/SentimentService');
+const { autoTagFromIntent } = require('./ai/TaggingService');
 const WhatsAppService = require('./WhatsAppService');
-const BillingEngine = require('../../billing/BillingEngine');
+const BillingEngine = require('./billing/BillingEngine');
 const tokenOptimizer = require('../utils/tokenOptimizer');
 
 class MessageService {
@@ -39,7 +39,7 @@ class MessageService {
         console.log(`[VENDOR_FOUND] Message for vendor: ${vendor.company_name} (${vendor.vendor_id})`);
 
         // 🔥 CHECK FOR FEEDBACK RESPONSE FIRST
-        const { FeedbackService } = require('../../models/feedback');
+        const { FeedbackService } = require('../models/FeedbackModel');
         const isAwaitingFeedback = await FeedbackService.isAwaitingFeedback(from);
         
         if (isAwaitingFeedback && messageType === 'text') {
@@ -224,7 +224,7 @@ ${agentContextData.context}`;
 
             // Handle tool calls
             if (response.data.tool_calls) {
-                const { FeedbackAPI } = require('../../api/feedback');
+                const { FeedbackAPI } = require('./FeedbackService');
                 
                 for (const toolCall of response.data.tool_calls) {
                     if (toolCall.name === 'submit_feedback') {
@@ -252,13 +252,15 @@ ${agentContextData.context}`;
 
             // 🤖 Auto-close conversation if AI resolved with high confidence
             if (botMessage.resolution_analysis) {
-                const { autoCloseIfResolved } = require('../../services/sla');
+                console.log(`[RESOLUTION] Analysis result: resolved=${botMessage.resolution_analysis.resolved}, confidence=${botMessage.resolution_analysis.confidence}, reason="${botMessage.resolution_analysis.reason}"`);
+                
+                const { autoCloseIfResolved } = require('../services/SLAService');
                 const autoClosed = await autoCloseIfResolved(chatroom._id, botMessage.resolution_analysis);
                 if (autoClosed) {
                     console.log(`[SLA] Auto-closed conversation ${chatroom._id} due to high confidence resolution`);
                     
                     // 🔥 NEW: Request feedback after AI auto-close
-                    const { FeedbackService } = require('../../models/feedback');
+                    const { FeedbackService } = require('../models/FeedbackModel');
                     await FeedbackService.scheduleFeedbackRequest(
                         vendor.vendor_id,
                         chatroom._id,
@@ -268,6 +270,8 @@ ${agentContextData.context}`;
                         botMessage.resolution_analysis.confidence
                     );
                     console.log(`[FEEDBACK] Scheduled confident resolution feedback for ${from}`);
+                } else {
+                    console.log(`[SLA] No auto-close triggered - confidence ${botMessage.resolution_analysis.confidence} below threshold`);
                 }
             }
 
@@ -386,7 +390,7 @@ ${agentContextData.context}`;
                         );
                         
                         if (containsFinancialContent) {
-                            const { BillVerificationService } = require('../../ai/bill-verification');
+                            const { BillVerificationService } = require('./ai/BillVerificationService');
                             const mockPdfAnalysis = {
                                 summary: imageResult.analysis,
                                 document_type: 'invoice', // Assume invoice for images
@@ -480,7 +484,7 @@ ${agentContextData.context}`;
                             // Perform bill verification for financial documents
                             if (pdfResult.analysis.document_type && 
                                 ['bill', 'invoice', 'receipt', 'statement'].includes(pdfResult.analysis.document_type.toLowerCase())) {
-                                const { BillVerificationService } = require('../../ai/bill-verification');
+                                const { BillVerificationService } = require('./ai/BillVerificationService');
                                 const verificationResult = await BillVerificationService.verifyBillAuthenticity(
                                     pdfResult.analysis, 
                                     processedContent
@@ -587,7 +591,7 @@ ${agentContextData.context}`;
 
             // Update chatroom with tags
             if (tags.length > 0) {
-                const { Chatroom } = require('../../models/database');
+                const { Chatroom } = require('../models/database');
                 const chatroom = await Chatroom.findById(chatroomId);
                 if (chatroom) {
                     const existingTags = chatroom.tags || [];
@@ -611,7 +615,7 @@ ${agentContextData.context}`;
             let resolutionUsageData = null;
 
             if (messageType === 'bot' && userMessage) {
-                const { analyzeQueryResolution } = require('../../ai/resolution');
+                const { analyzeQueryResolution } = require('./ai/ResolutionService');
                 const analysis = await analyzeQueryResolution(userMessage, content).catch(err => ({
                     resolved: false, confidence: 0, reason: 'Analysis failed', resolution_type: 'no_resolution', tokenUsage: null
                 }));
@@ -660,7 +664,7 @@ ${agentContextData.context}`;
 
     async getOptimizedHistory(chatroomId, limit = 8) {
         try {
-            const { Message } = require('../../models/database');
+            const { Message } = require('../models/database');
             
             // Get recent messages (excluding current message being processed)
             const recentMessages = await Message.find({ chatroom_id: chatroomId })

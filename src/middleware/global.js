@@ -1,5 +1,5 @@
-const { verifyToken, verifyAdminToken } = require('../../middleware/auth');
-const { Vendor } = require('../../models/database');
+const { verifyToken, verifyAdminToken } = require('./auth');
+const { Vendor } = require('../models/database');
 
 function setupGlobalMiddleware(app) {
     // Make the logged-in vendor available to EJS templates
@@ -21,7 +21,7 @@ function setupGlobalMiddleware(app) {
             const adminToken = req.session?.adminToken || req.headers['admin-authorization']?.replace('Bearer ', '');
             if (adminToken) {
                 const decodedAdmin = verifyAdminToken(adminToken);
-                const AdminUser = require('../../models/admin');
+                const AdminUser = require('../models/AdminModel');
                 const admin = await AdminUser.findById(decodedAdmin.adminId);
                 if (admin && admin.is_active) res.locals.admin = admin;
             }

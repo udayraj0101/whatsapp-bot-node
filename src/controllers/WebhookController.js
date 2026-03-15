@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const { Vendor } = require('../../models/database');
+const { Vendor } = require('../models/database');
 const MessageService = require('../services/MessageService');
 
 class WebhookController {

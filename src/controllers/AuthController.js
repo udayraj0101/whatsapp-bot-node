@@ -1,5 +1,5 @@
-const { Vendor } = require('../../models/database');
-const { generateToken, generateAdminToken } = require('../../middleware/auth');
+const { Vendor } = require('../models/database');
+const { generateToken, generateAdminToken } = require('../middleware/auth');
 
 class AuthController {
     showLogin(req, res) {
@@ -37,7 +37,7 @@ class AuthController {
     async adminLogin(req, res) {
         try {
             const { email, password } = req.body;
-            const AdminUser = require('../../models/admin');
+            const AdminUser = require('../models/AdminModel');
             const admin = await AdminUser.findOne({ email: email.toLowerCase(), is_active: true });
             if (!admin || !(await admin.comparePassword(password))) {
                 return res.render('admin/login', { error: 'Invalid email or password' });

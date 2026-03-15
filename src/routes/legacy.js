@@ -1,7 +1,7 @@
-const { requireAuth } = require('../../middleware/auth');
-const { AgentContext, getAgentContext, saveAgentContext, Chatroom, Message, VendorWallet, ExchangeRate, WalletTransaction, UsageRecord, PricingConfig } = require('../../models/database');
-const { getFixedTags } = require('../../ai/tagging');
-const { getSLAStats, calculateSLAStatus } = require('../../services/sla');
+const { requireAuth } = require('../middleware/auth');
+const { AgentContext, getAgentContext, saveAgentContext, Chatroom, Message, VendorWallet, ExchangeRate, WalletTransaction, UsageRecord, PricingConfig } = require('../models/database');
+const { getFixedTags } = require('../services/ai/TaggingService');
+const { getSLAStats, calculateSLAStatus } = require('../services/SLAService');
 
 module.exports = function(app) {
     // 📝 Manual Resolution API Endpoint with Feedback Option
@@ -11,12 +11,12 @@ module.exports = function(app) {
             const chatroomId = req.params.id;
             
             if (status === 'closed') {
-                const { closeConversation } = require('../../services/sla');
+                const { closeConversation } = require('../services/SLAService');
                 await closeConversation(chatroomId, req.vendorId, 'manual');
                 
                 // 🔥 NEW: Request feedback when manually closing
                 if (requestFeedback !== false) { // Default to true unless explicitly false
-                    const { FeedbackService } = require('../../models/feedback');
+                    const { FeedbackService } = require('../models/FeedbackModel');
                     const chatroom = await Chatroom.findById(chatroomId);
                     
                     if (chatroom) {
@@ -54,7 +54,7 @@ module.exports = function(app) {
     app.post('/api/chatroom/:id/request-feedback', requireAuth, async (req, res) => {
         try {
             const chatroomId = req.params.id;
-            const { FeedbackService } = require('../../models/feedback');
+            const { FeedbackService } = require('../models/FeedbackModel');
             
             const chatroom = await Chatroom.findOne({ 
                 _id: chatroomId, 
@@ -66,7 +66,7 @@ module.exports = function(app) {
             }
             
             // Check if feedback already requested
-            const { FeedbackRequest } = require('../../models/feedback');
+            const { FeedbackRequest } = require('../models/FeedbackModel');
             const existingFeedback = await FeedbackRequest.findOne({
                 chatroom_id: chatroomId,
                 status: { $in: ['pending', 'sent'] }
@@ -115,7 +115,7 @@ module.exports = function(app) {
                 .skip(skip)
                 .limit(limit);
             
-            const { getEffectiveSLAStatus } = require('../../services/sla');
+            const { getEffectiveSLAStatus } = require('../services/SLAService');
             const allConversations = [];
             const overdueConversations = [];
             const dueSoonConversations = [];
@@ -174,7 +174,7 @@ module.exports = function(app) {
     // Feedback Route (Protected)
     app.get('/feedback', requireAuth, async (req, res) => {
         try {
-            const { FeedbackRequest } = require('../../models/feedback');
+            const { FeedbackRequest } = require('../models/FeedbackModel');
             
             const page = parseInt(req.query.page) || 1;
             const limit = 20;

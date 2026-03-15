@@ -21,7 +21,7 @@ async function analyzeQueryResolution(userMessage, aiResponse, conversationConte
         // Check if user is asking a specific question or reporting an issue
         const hasQuestion = questionWords.some(word => userLower.includes(word));
         const hasThankYou = userLower.includes('thank') || userLower.includes('thanks');
-        const hasPositiveFeedback = userLower.includes('worked') || userLower.includes('fixed') || userLower.includes('solved');
+        const hasPositiveFeedback = userLower.includes('worked') || userLower.includes('fixed') || userLower.includes('solved') || userLower.includes('helpful') || userLower.includes('great') || userLower.includes('good');
         
         // If user says "thanks" or "it worked", that's high confidence resolution
         if (hasThankYou && hasPositiveFeedback) {
@@ -29,6 +29,17 @@ async function analyzeQueryResolution(userMessage, aiResponse, conversationConte
                 resolved: true,
                 confidence: 0.9,
                 reason: 'Customer confirmed issue was resolved with thanks',
+                resolution_type: 'direct_answer',
+                tokenUsage: null
+            };
+        }
+        
+        // If user just says thanks (common satisfaction indicator)
+        if (hasThankYou) {
+            return {
+                resolved: true,
+                confidence: 0.8,
+                reason: 'Customer expressed gratitude indicating satisfaction',
                 resolution_type: 'direct_answer',
                 tokenUsage: null
             };

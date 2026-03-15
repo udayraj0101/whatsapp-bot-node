@@ -1,4 +1,4 @@
-const { ConversationWindow, PricingConfig, VendorWallet, UsageRecord } = require('../models/database');
+const { ConversationWindow, PricingConfig, VendorWallet, UsageRecord } = require('../../models/database');
 
 class BillingEngine {
     

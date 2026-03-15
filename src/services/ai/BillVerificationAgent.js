@@ -1,4 +1,4 @@
-const { BillVerificationService } = require('../ai/bill-verification');
+const { BillVerificationService } = require('./bill-verification');
 
 class BillVerificationAgent {
     static getVerificationContext() {

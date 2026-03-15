@@ -1,6 +1,6 @@
 // Simple Feedback API for Agent Tool Integration
 
-const { FeedbackRequest, FeedbackAnalytics } = require('../models/feedback');
+const { FeedbackRequest, FeedbackAnalytics } = require('../models/FeedbackModel');
 const { Chatroom } = require('../models/database');
 
 class FeedbackAPI {

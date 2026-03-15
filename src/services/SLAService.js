@@ -1,5 +1,47 @@
 const { Chatroom, Message } = require('../models/database');
-const { calculateSLAStatus, updateConversationStatus, checkOverdueConversations, getSLAStats } = require('../models/sla');
+const { calculateSLAStatus, getSLAStats } = require('../utils/analytics');
+
+/**
+ * Update chatroom status and optionally set/clear closed fields.
+ */
+async function updateConversationStatus(chatroomId, status, reason = 'manual') {
+    const update = { status };
+
+    if (status === 'closed') {
+        update.closed_reason = reason;
+        update.closed_at = new Date();
+        update.manually_closed = reason === 'manual';
+    } else {
+        update.closed_reason = null;
+        update.closed_at = null;
+        if (reason !== 'manual') {
+            update.manually_closed = false;
+        }
+    }
+
+    const result = await Chatroom.findByIdAndUpdate(chatroomId, update, { new: true });
+    return result;
+}
+
+/**
+ * Finds overdue conversations (where SLA deadline passed) and updates their status.
+ * Returns number of updated chatrooms.
+ */
+async function checkOverdueConversations() {
+    const now = new Date();
+    const overdueFilter = {
+        status: { $in: ['new', 'pending'] },
+        manually_closed: false,
+        sla_deadline: { $exists: true, $lte: now }
+    };
+
+    const result = await Chatroom.updateMany(
+        overdueFilter,
+        { status: 'overdue' }
+    );
+
+    return result.modifiedCount || result.nModified || 0;
+}
 
 /**
  * SLA Background Processor
@@ -110,8 +152,8 @@ async function closeConversation(chatroomId, vendorId, reason = 'manual') {
  */
 async function autoCloseIfResolved(chatroomId, resolutionAnalysis) {
     try {
-        // 🔥 STRICTER AUTO-CLOSE CRITERIA: Only close on very high confidence
-        if (resolutionAnalysis.resolved && resolutionAnalysis.confidence >= 0.85) {
+        // 🔥 ADJUSTED AUTO-CLOSE CRITERIA: Lower threshold for better detection
+        if (resolutionAnalysis.resolved && resolutionAnalysis.confidence >= 0.75) {
             // Additional check: Don't auto-close if conversation just started
             const messageCount = await Message.countDocuments({ chatroom_id: chatroomId });
             if (messageCount < 4) { // Need at least 4 messages (2 exchanges)
